@@ -1,121 +1,136 @@
-<?php include('config.php'); ?>
+<?php 
+include('config.php'); 
+// Fetch dynamic counts from database tables
+$p_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as t FROM PATIENT"))['t'];
+$a_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as t FROM APPOINTMENT WHERE STATUS != 'Completed'"))['t'];
+$s_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as t FROM PRODUCT WHERE STOCK_QUANTITY < 5"))['t'];
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>C-More | Management Directory</title>
+    <title>C-More | Management Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        .glass-card { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); }
-        .hover-lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }
-        .hover-lift:hover { transform: translateY(-5px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style> body { font-family: 'Plus Jakarta Sans', sans-serif; } </style>
 </head>
-<body class="bg-slate-50 min-h-screen font-sans flex text-slate-900">
-
-    <aside class="w-72 bg-slate-900 text-white flex flex-col fixed h-full shadow-2xl">
-        <div class="p-8 border-b border-slate-800">
-            <h1 class="text-3xl font-black tracking-tighter text-blue-400">C-MORE</h1>
-            <p class="text-xs text-slate-500 mt-1 uppercase tracking-widest">Optical Management v1.0</p>
-        </div>
-        
-        <nav class="flex-1 px-4 py-6 space-y-2">
-            <a href="index.php" class="flex items-center space-x-3 p-4 bg-blue-600/20 text-blue-400 rounded-xl border border-blue-600/50">
-                <i class="fa-solid fa-house-chimney text-lg"></i>
-                <span class="font-semibold">Dashboard</span>
-            </a>
-            <a href="patients.php" class="flex items-center space-x-3 p-4 hover:bg-slate-800 rounded-xl transition group">
-                <i class="fa-solid fa-hospital-user text-slate-400 group-hover:text-white"></i>
-                <span>Patients</span>
-            </a>
-            <a href="#" class="flex items-center space-x-3 p-4 hover:bg-slate-800 rounded-xl transition group">
-                <i class="fa-solid fa-calendar-day text-slate-400 group-hover:text-white"></i>
-                <span>Appointments</span>
-            </a>
-            <a href="#" class="flex items-center space-x-3 p-4 hover:bg-slate-800 rounded-xl transition group">
-                <i class="fa-solid fa-stethoscope text-slate-400 group-hover:text-white"></i>
-                <span>Eye Examinations</span>
-            </a>
-            <a href="#" class="flex items-center space-x-3 p-4 hover:bg-slate-800 rounded-xl transition group">
-                <i class="fa-solid fa-glasses text-slate-400 group-hover:text-white"></i>
-                <span>Inventory</span>
-            </a>
-            <a href="#" class="flex items-center space-x-3 p-4 hover:bg-slate-800 rounded-xl transition group">
-                <i class="fa-solid fa-receipt text-slate-400 group-hover:text-white"></i>
-                <span>Sales Records</span>
-            </a>
-        </nav>
-
-        <div class="p-6 border-t border-slate-800 bg-slate-900/50">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center font-bold">UT</div>
-                <div>
-                    <p class="text-sm font-bold">UTeM Student</p>
-                    <p class="text-[10px] text-slate-500">FYP Developer</p>
-                </div>
-            </div>
-        </div>
-    </aside>
-
-    <main class="flex-1 ml-72 p-10">
-        <div class="flex justify-between items-end mb-10">
+<body class="bg-[#f8fafc] flex min-h-screen">
+    <?php include('sidebar.php'); ?>
+    
+    <main class="flex-1 ml-72 p-12">
+        <header class="flex justify-between items-center mb-12">
             <div>
-                <h2 class="text-4xl font-bold text-slate-800">Welcome Back</h2>
-                <p class="text-slate-500 mt-2">Here is what's happening at C-More today.</p>
+                <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">System Overview</h1>
+                <p class="text-slate-500 font-medium mt-1">Operational performance for <?php echo date('F d, Y'); ?></p>
             </div>
-            <div class="bg-white px-6 py-3 rounded-2xl shadow-sm border flex items-center space-x-4">
-                <i class="fa-solid fa-clock text-blue-500"></i>
-                <span class="font-medium text-slate-700"><?php echo date('l, d F Y'); ?></span>
+            <div class="flex space-x-3">
+                <div class="bg-white p-2 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-3 px-4">
+                    <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                    <span class="text-xs font-black text-slate-600 uppercase tracking-widest">Server Live: <?php echo $db; ?></span>
+                </div>
             </div>
-        </div>
+        </header>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            
-            <div onclick="location.href='patients.php';" class="glass-card p-8 rounded-3xl border border-white hover-lift cursor-pointer relative overflow-hidden group">
-                <div class="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition">
-                    <i class="fa-solid fa-user-injured text-9xl"></i>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+            <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 relative overflow-hidden group">
+                <div class="flex justify-between items-start mb-6">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-16 h-16 bg-teal-50 rounded-2xl flex items-center justify-center text-[#0097B2] shadow-sm">
+                            <i class="fa-solid fa-user-check text-2xl"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center text-green-500 font-black text-sm">
+                                <i class="fa-solid fa-caret-up mr-1"></i><span>12.5%</span>
+                            </div>
+                            <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Growth</span>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-black bg-[#B9D977] text-white px-3 py-1 rounded-full uppercase tracking-tighter shadow-lg shadow-lime-100">Verified</span>
                 </div>
-                <div class="w-14 h-14 bg-blue-500 text-white rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-200">
-                    <i class="fa-solid fa-id-card-clip text-2xl"></i>
-                </div>
-                <h3 class="text-xl font-bold mb-2">Patient Management</h3>
-                <p class="text-slate-500 text-sm leading-relaxed mb-4">View medical history, IC records, and registration dates for all clinic clients.</p>
-                <span class="text-blue-600 font-bold flex items-center text-sm">Open Directory <i class="fa-solid fa-arrow-right ml-2 text-xs"></i></span>
-            </div>
-
-            <div class="glass-card p-8 rounded-3xl border border-white hover-lift cursor-pointer relative overflow-hidden group">
-                <div class="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition">
-                    <i class="fa-solid fa-eye text-9xl"></i>
-                </div>
-                <div class="w-14 h-14 bg-purple-500 text-white rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-purple-200">
-                    <i class="fa-solid fa-microscope text-2xl"></i>
-                </div>
-                <h3 class="text-xl font-bold mb-2">Eye Examinations</h3>
-                <p class="text-slate-500 text-sm leading-relaxed mb-4">Record prescriptions, visual acuity results, and optometrist's clinical notes.</p>
-                <span class="text-purple-600 font-bold flex items-center text-sm">View Exams <i class="fa-solid fa-arrow-right ml-2 text-xs"></i></span>
+                <h3 class="text-slate-400 text-xs font-black uppercase tracking-[0.15em]">Registered Patients</h3>
+                <p class="text-6xl font-black text-slate-900 mt-2"><?php echo $p_count; ?></p>
             </div>
 
-            <div class="glass-card p-8 rounded-3xl border border-white hover-lift cursor-pointer relative overflow-hidden group">
-                <div class="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition">
-                    <i class="fa-solid fa-box text-9xl"></i>
+            <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40">
+                <div class="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600 mb-6">
+                    <i class="fa-solid fa-calendar-check text-2xl"></i>
                 </div>
-                <div class="w-14 h-14 bg-emerald-500 text-white rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-emerald-200">
+                <h3 class="text-slate-400 text-xs font-black uppercase tracking-[0.15em]">Pending Sessions</h3>
+                <p class="text-6xl font-black text-slate-900 mt-2"><?php echo $a_count; ?></p>
+            </div>
+
+            <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40">
+                <div class="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center text-red-500 mb-6">
                     <i class="fa-solid fa-boxes-stacked text-2xl"></i>
                 </div>
-                <h3 class="text-xl font-bold mb-2">Product Inventory</h3>
-                <p class="text-slate-500 text-sm leading-relaxed mb-4">Monitor stock levels for frames, lenses, and contact lenses. Manage pricing.</p>
-                <span class="text-emerald-600 font-bold flex items-center text-sm">Manage Stock <i class="fa-solid fa-arrow-right ml-2 text-xs"></i></span>
+                <h3 class="text-slate-400 text-xs font-black uppercase tracking-[0.15em]">Low Stock Alerts</h3>
+                <p class="text-6xl font-black <?php echo ($s_count > 0) ? 'text-red-600' : 'text-slate-900'; ?> mt-2"><?php echo $s_count; ?></p>
             </div>
-
         </div>
 
-        <div class="mt-12 flex items-center space-x-2 text-slate-400 text-xs uppercase tracking-widest">
-            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-            <span>Database "<?php echo $db; ?>" is Live</span>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <section class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40">
+                <div class="flex items-center space-x-4 mb-8">
+                    <div class="w-10 h-10 bg-slate-900 text-[#B9D977] rounded-xl flex items-center justify-center shadow-lg">
+                        <i class="fa-solid fa-plus text-lg"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-slate-800 tracking-tight">Quick Management</h2>
+                </div>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <a href="patients.php?action=add" class="flex flex-col items-center justify-center p-6 bg-slate-50 border border-slate-100 rounded-[2rem] hover:bg-white hover:border-[#0097B2] hover:shadow-lg transition group">
+                        <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-[#0097B2] mb-3 group-hover:scale-110 transition">
+                            <i class="fa-solid fa-user-plus text-xl"></i>
+                        </div>
+                        <span class="text-xs font-bold text-slate-600 group-hover:text-[#0097B2]">Add Patient</span>
+                    </a>
+                    <a href="sales.php?action=new" class="flex flex-col items-center justify-center p-6 bg-slate-50 border border-slate-100 rounded-[2rem] hover:bg-white hover:border-[#0097B2] hover:shadow-lg transition group">
+                        <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-[#0097B2] mb-3 group-hover:scale-110 transition">
+                            <i class="fa-solid fa-receipt text-xl"></i>
+                        </div>
+                        <span class="text-xs font-bold text-slate-600 group-hover:text-[#0097B2]">Add Sales</span>
+                    </a>
+                    <a href="inventory.php?action=add" class="flex flex-col items-center justify-center p-6 bg-slate-50 border border-slate-100 rounded-[2rem] hover:bg-white hover:border-[#0097B2] hover:shadow-lg transition group">
+                        <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-[#0097B2] mb-3 group-hover:scale-110 transition">
+                            <i class="fa-solid fa-box-open text-xl"></i>
+                        </div>
+                        <span class="text-xs font-bold text-slate-600 group-hover:text-[#0097B2]">Add Stock</span>
+                    </a>
+                </div>
+            </section>
+
+            <section class="bg-slate-900 p-8 rounded-[2.5rem] border border-slate-800 shadow-2xl relative overflow-hidden group">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-[#0097B2]/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+                
+                <div class="flex items-center space-x-4 mb-8 relative z-10">
+                    <div class="w-10 h-10 bg-white/10 text-[#B9D977] rounded-xl flex items-center justify-center border border-white/10">
+                        <i class="fa-solid fa-chart-line text-lg"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-white tracking-tight">Generate Clinical Report</h2>
+                </div>
+
+                <p class="text-slate-400 text-xs mb-8 relative z-10">Export summarized data for clinic analysis and auditing purposes.</p>
+
+                <div class="space-y-4 relative z-10">
+                    <button class="w-full flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-[#0097B2] hover:border-transparent transition text-white group">
+                        <div class="flex items-center space-x-3">
+                            <i class="fa-solid fa-file-invoice-dollar text-slate-400 group-hover:text-white transition"></i>
+                            <span class="text-sm font-semibold tracking-wide">Monthly Sales Performance</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-[10px] text-slate-600 group-hover:text-white"></i>
+                    </button>
+
+                    <button class="w-full flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-[#B9D977] hover:border-transparent transition text-white group">
+                        <div class="flex items-center space-x-3">
+                            <i class="fa-solid fa-file-medical text-slate-400 group-hover:text-slate-900 transition"></i>
+                            <span class="text-sm font-semibold tracking-wide group-hover:text-slate-900 transition">Stock & Inventory Audit</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-[10px] text-slate-600 group-hover:text-slate-900"></i>
+                    </button>
+                </div>
+            </section>
         </div>
     </main>
-
 </body>
 </html>
