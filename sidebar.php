@@ -29,7 +29,10 @@
         nav_item('directory.php', 'fa-solid fa-grid-2', 'Dashboard', $current);
         nav_item('patients.php', 'fa-solid fa-user-group', 'Patients', $current);
         nav_item('appointment.php', 'fa-solid fa-calendar-check', 'Appointments', $current);
-        nav_item('exam.php', 'fa-solid fa-microscope', 'Eye Exams', $current);
+        
+        // UPDATED: Changed from Eye Exams (exam.php) to Sales (sales.php)
+        nav_item('sales.php', 'fa-solid fa-receipt', 'Sales', $current);
+        
         nav_item('inventory.php', 'fa-solid fa-box-archive', 'Inventory', $current);
         ?>
     </nav>

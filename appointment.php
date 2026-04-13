@@ -6,14 +6,26 @@
     <title>C-More | Appointments</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style> body { font-family: 'Plus Jakarta Sans', sans-serif; } </style>
 </head>
-<body class="bg-slate-50 flex min-h-screen">
-    <main class="flex-1 p-10">
-        <h1 class="text-3xl font-bold text-slate-800 mb-8">Appointment Schedule</h1>
-        
-        <div class="grid grid-cols-1 gap-4">
+<body class="bg-[#f8fafc] flex min-h-screen text-slate-900">
+
+    <?php include('sidebar.php'); ?>
+
+    <main class="flex-1 ml-72 p-12">
+        <header class="flex justify-between items-end mb-12">
+            <div>
+                <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">Appointment Schedule</h1>
+                <p class="text-slate-500 font-medium mt-1">Manage daily bookings and patient arrivals.</p>
+            </div>
+            <button class="bg-[#0097B2] text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-teal-100 hover:scale-105 transition-all">
+                <i class="fa-solid fa-calendar-plus mr-2"></i> Book Appointment
+            </button>
+        </header>
+
+        <div class="grid grid-cols-1 gap-6">
             <?php
-            // SQL JOIN: Fetch Appointment info along with Patient Name
             $sql = "SELECT A.*, P.NAME as PATIENT_NAME 
                     FROM APPOINTMENT A 
                     JOIN PATIENT P ON A.PATIENT_ID = P.PATIENT_ID 
@@ -21,24 +33,39 @@
             $res = mysqli_query($conn, $sql);
             
             while($row = mysqli_fetch_assoc($res)):
-                $status_color = ($row['STATUS'] == 'Completed') ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700';
+                $is_completed = ($row['STATUS'] == 'Completed');
+                $status_class = $is_completed 
+                    ? 'bg-slate-100 text-slate-500' 
+                    : 'bg-[#B9D977]/20 text-[#6d8a2a]';
             ?>
-            <div class="bg-white p-6 rounded-2xl border border-slate-200 flex items-center justify-between shadow-sm hover:shadow-md transition">
-                <div class="flex items-center space-x-6">
-                    <div class="text-center bg-slate-100 p-3 rounded-xl min-w-[80px]">
-                        <p class="text-xs uppercase font-bold text-slate-400"><?php echo date('M', strtotime($row['APPOINTMENT_DATETIME'])); ?></p>
-                        <p class="text-2xl font-black text-slate-800"><?php echo date('d', strtotime($row['APPOINTMENT_DATETIME'])); ?></p>
+            <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 flex items-center justify-between group hover:border-[#0097B2]/30 transition-all duration-300">
+                <div class="flex items-center space-x-8">
+                    <div class="text-center bg-slate-50 p-4 rounded-[2rem] min-w-[100px] border border-slate-100 group-hover:bg-[#0097B2] group-hover:text-white transition-colors">
+                        <p class="text-[10px] uppercase font-black tracking-[0.2em] opacity-60"><?php echo date('M', strtotime($row['APPOINTMENT_DATETIME'])); ?></p>
+                        <p class="text-3xl font-black"><?php echo date('d', strtotime($row['APPOINTMENT_DATETIME'])); ?></p>
                     </div>
                     <div>
-                        <h4 class="font-bold text-lg text-slate-800"><?php echo $row['PATIENT_NAME']; ?></h4>
-                        <p class="text-slate-500"><i class="fa-regular fa-clock mr-2 text-blue-500"></i><?php echo date('h:i A', strtotime($row['APPOINTMENT_DATETIME'])); ?></p>
+                        <h4 class="font-extrabold text-xl text-slate-800"><?php echo $row['PATIENT_NAME']; ?></h4>
+                        <div class="flex items-center space-x-4 mt-1">
+                            <span class="text-sm font-medium text-slate-400">
+                                <i class="fa-regular fa-clock mr-2 text-[#0097B2]"></i><?php echo date('h:i A', strtotime($row['APPOINTMENT_DATETIME'])); ?>
+                            </span>
+                            <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter <?php echo $status_class; ?>">
+                                <?php echo $row['STATUS']; ?>
+                            </span>
+                        </div>
                     </div>
                 </div>
-                <div class="flex items-center space-x-4">
-                    <span class="px-4 py-1 rounded-full text-xs font-bold <?php echo $status_color; ?>">
-                        <?php echo $row['STATUS']; ?>
-                    </span>
-                    <button class="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm hover:bg-slate-700">Check-In</button>
+                
+                <div class="flex items-center space-x-3">
+                    <?php if(!$is_completed): ?>
+                        <button class="bg-slate-900 text-white px-6 py-3 rounded-xl text-sm font-bold hover:bg-[#0097B2] transition-colors shadow-lg shadow-slate-200">
+                            Check-In
+                        </button>
+                    <?php endif; ?>
+                    <button class="w-12 h-12 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all">
+                        <i class="fa-solid fa-ellipsis-vertical"></i>
+                    </button>
                 </div>
             </div>
             <?php endwhile; ?>
