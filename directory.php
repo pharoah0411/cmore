@@ -33,10 +33,10 @@ $s_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as t FROM PRO
         </header>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-            <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 relative overflow-hidden group">
+            <a href="patients.php" class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 relative overflow-hidden group hover:border-[#0097B2]/40 transition-all">
                 <div class="flex justify-between items-start mb-6">
                     <div class="flex items-center space-x-4">
-                        <div class="w-16 h-16 bg-teal-50 rounded-2xl flex items-center justify-center text-[#0097B2] shadow-sm">
+                        <div class="w-16 h-16 bg-teal-50 rounded-2xl flex items-center justify-center text-[#0097B2] shadow-sm group-hover:bg-[#0097B2] group-hover:text-white transition-colors">
                             <i class="fa-solid fa-user-check text-2xl"></i>
                         </div>
                         <div>
@@ -46,27 +46,26 @@ $s_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as t FROM PRO
                             <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Growth</span>
                         </div>
                     </div>
-                    <span class="text-[10px] font-black bg-[#B9D977] text-white px-3 py-1 rounded-full uppercase tracking-tighter shadow-lg shadow-lime-100">Verified</span>
-                </div>
+                    </div>
                 <h3 class="text-slate-400 text-xs font-black uppercase tracking-[0.15em]">Registered Patients</h3>
                 <p class="text-6xl font-black text-slate-900 mt-2"><?php echo $p_count; ?></p>
-            </div>
+            </a>
 
-            <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40">
-                <div class="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600 mb-6">
+            <a href="appointment.php" class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 group hover:border-[#0097B2]/40 transition-all">
+                <div class="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600 mb-6 group-hover:bg-purple-600 group-hover:text-white transition-colors">
                     <i class="fa-solid fa-calendar-check text-2xl"></i>
                 </div>
                 <h3 class="text-slate-400 text-xs font-black uppercase tracking-[0.15em]">Pending Sessions</h3>
                 <p class="text-6xl font-black text-slate-900 mt-2"><?php echo $a_count; ?></p>
-            </div>
+            </a>
 
-            <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40">
-                <div class="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center text-red-500 mb-6">
+            <a href="inventory.php" class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 group hover:border-[#0097B2]/40 transition-all">
+                <div class="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center text-red-500 mb-6 group-hover:bg-red-500 group-hover:text-white transition-colors">
                     <i class="fa-solid fa-boxes-stacked text-2xl"></i>
                 </div>
                 <h3 class="text-slate-400 text-xs font-black uppercase tracking-[0.15em]">Low Stock Alerts</h3>
                 <p class="text-6xl font-black <?php echo ($s_count > 0) ? 'text-red-600' : 'text-slate-900'; ?> mt-2"><?php echo $s_count; ?></p>
-            </div>
+            </a>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -79,19 +78,19 @@ $s_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as t FROM PRO
                 </div>
                 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <a href="patients.php?action=add" class="flex flex-col items-center justify-center p-6 bg-slate-50 border border-slate-100 rounded-[2rem] hover:bg-white hover:border-[#0097B2] hover:shadow-lg transition group">
+                    <a href="patient_add.php" class="flex flex-col items-center justify-center p-6 bg-slate-50 border border-slate-100 rounded-[2rem] hover:bg-white hover:border-[#0097B2] hover:shadow-lg transition group">
                         <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-[#0097B2] mb-3 group-hover:scale-110 transition">
                             <i class="fa-solid fa-user-plus text-xl"></i>
                         </div>
                         <span class="text-xs font-bold text-slate-600 group-hover:text-[#0097B2]">Add Patient</span>
                     </a>
-                    <a href="sales.php?action=new" class="flex flex-col items-center justify-center p-6 bg-slate-50 border border-slate-100 rounded-[2rem] hover:bg-white hover:border-[#0097B2] hover:shadow-lg transition group">
+                    <a href="sales.php" class="flex flex-col items-center justify-center p-6 bg-slate-50 border border-slate-100 rounded-[2rem] hover:bg-white hover:border-[#0097B2] hover:shadow-lg transition group">
                         <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-[#0097B2] mb-3 group-hover:scale-110 transition">
                             <i class="fa-solid fa-receipt text-xl"></i>
                         </div>
                         <span class="text-xs font-bold text-slate-600 group-hover:text-[#0097B2]">Add Sales</span>
                     </a>
-                    <a href="inventory.php?action=add" class="flex flex-col items-center justify-center p-6 bg-slate-50 border border-slate-100 rounded-[2rem] hover:bg-white hover:border-[#0097B2] hover:shadow-lg transition group">
+                    <a href="inventory.php" class="flex flex-col items-center justify-center p-6 bg-slate-50 border border-slate-100 rounded-[2rem] hover:bg-white hover:border-[#0097B2] hover:shadow-lg transition group">
                         <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-[#0097B2] mb-3 group-hover:scale-110 transition">
                             <i class="fa-solid fa-box-open text-xl"></i>
                         </div>
