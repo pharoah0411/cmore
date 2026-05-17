@@ -5,7 +5,7 @@ $p_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as t FROM PAT
 $a_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as t FROM APPOINTMENT WHERE STATUS != 'Completed'"))['t'];
 $s_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as t FROM PRODUCT WHERE STOCK_QUANTITY < 5"))['t'];
 
-// NEW: Fetch count of expiring/expired products (within 90 days)
+// Fetch count of expiring/expired products (within 90 days)
 $e_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as t FROM PRODUCT WHERE EXPIRY_DATE IS NOT NULL AND EXPIRY_DATE <= DATE_ADD(CURDATE(), INTERVAL 90 DAY)"))['t'];
 ?>
 <!DOCTYPE html>
@@ -52,8 +52,16 @@ $e_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as t FROM PRO
                         <?php echo htmlspecialchars($ls['BRAND_NAME']); ?> <span class="bg-red-100 text-red-600 ml-2 px-2 py-0.5 rounded-md font-bold"><?php echo $ls['STOCK_QUANTITY']; ?> left</span>
                     </span>
                     <?php endwhile; ?>
+                    <?php if($s_count > 5): ?>
+                    <a href="inventory.php" class="bg-red-500 text-white border border-red-600 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl hover:bg-red-600 transition shadow-sm flex items-center">
+                        + <?php echo ($s_count - 5); ?> More
+                    </a>
+                    <?php endif; ?>
                 </div>
             </div>
+            <a href="inventory.php" class="shrink-0 text-red-400 hover:text-red-600 transition bg-white p-3 rounded-xl border border-red-100 shadow-sm">
+                <i class="fa-solid fa-arrow-right"></i>
+            </a>
         </div>
         <?php endif; ?>
 
@@ -79,8 +87,16 @@ $e_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as t FROM PRO
                         </span>
                     </span>
                     <?php endwhile; ?>
+                    <?php if($e_count > 5): ?>
+                    <a href="inventory.php" class="bg-orange-500 text-white border border-orange-600 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl hover:bg-orange-600 transition shadow-sm flex items-center">
+                        + <?php echo ($e_count - 5); ?> More
+                    </a>
+                    <?php endif; ?>
                 </div>
             </div>
+            <a href="inventory.php" class="shrink-0 text-orange-400 hover:text-orange-600 transition bg-white p-3 rounded-xl border border-orange-100 shadow-sm">
+                <i class="fa-solid fa-arrow-right"></i>
+            </a>
         </div>
         <?php endif; ?>
 
@@ -115,6 +131,7 @@ $e_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as t FROM PRO
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
             <section class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40">
                 <div class="flex items-center space-x-4 mb-8">
                     <div class="w-10 h-10 bg-slate-900 text-[#B9D977] rounded-xl flex items-center justify-center shadow-lg"><i class="fa-solid fa-plus text-lg"></i></div>
@@ -135,6 +152,38 @@ $e_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as t FROM PRO
                     </a>
                 </div>
             </section>
+
+            <section class="bg-slate-900 p-8 rounded-[2.5rem] border border-slate-800 shadow-2xl relative overflow-hidden group">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-[#0097B2]/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+                
+                <div class="flex items-center space-x-4 mb-8 relative z-10">
+                    <div class="w-10 h-10 bg-white/10 text-[#B9D977] rounded-xl flex items-center justify-center border border-white/10">
+                        <i class="fa-solid fa-chart-line text-lg"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-white tracking-tight">Generate Reports</h2>
+                </div>
+
+                <p class="text-slate-400 text-xs mb-8 relative z-10">Export summarized data for clinic analysis and auditing purposes. (Pages coming soon)</p>
+
+                <div class="space-y-4 relative z-10">
+                    <a href="report_sales.php" class="w-full flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-[#0097B2] hover:border-transparent transition text-white group cursor-pointer block">
+                        <div class="flex items-center space-x-3">
+                            <i class="fa-solid fa-file-invoice-dollar text-slate-400 group-hover:text-white transition"></i>
+                            <span class="text-sm font-semibold tracking-wide">Monthly Sales Performance</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-[10px] text-slate-600 group-hover:text-white"></i>
+                    </a>
+
+                    <a href="report_inventory.php" class="w-full flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-[#B9D977] hover:border-transparent transition text-white group cursor-pointer block">
+                        <div class="flex items-center space-x-3">
+                            <i class="fa-solid fa-file-medical text-slate-400 group-hover:text-slate-900 transition"></i>
+                            <span class="text-sm font-semibold tracking-wide group-hover:text-slate-900 transition">Stock & Inventory Audit</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-[10px] text-slate-600 group-hover:text-slate-900"></i>
+                    </a>
+                </div>
+            </section>
+
         </div>
     </main>
 </body>

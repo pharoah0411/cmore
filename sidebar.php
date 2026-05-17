@@ -31,6 +31,9 @@
         nav_item('appointment.php', 'fa-solid fa-calendar-check', 'Appointments', $current);
         nav_item('sales.php', 'fa-solid fa-receipt', 'Sales', $current);
         nav_item('inventory.php', 'fa-solid fa-box-archive', 'Inventory', $current);
+        
+        // NEW: Reports & Analytics Section
+        nav_item('reports.php', 'fa-solid fa-chart-line', 'Reports & Analytics', $current);
         ?>
     </nav>
 

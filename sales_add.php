@@ -1,18 +1,29 @@
 <?php 
 include('config.php'); 
 
+$page_error = ""; // To catch and display database errors
+
 // ==========================================
 // AJAX Handler for New Patient Pop-up
 // ==========================================
 if(isset($_POST['ajax_add_patient'])) {
+    error_reporting(0); // Prevents hidden PHP warnings from breaking the JSON
+    ob_clean();
     header('Content-Type: application/json');
+    
     $name = mysqli_real_escape_string($conn, $_POST['name']);
     $ic = mysqli_real_escape_string($conn, $_POST['ic_number']);
     $phone = mysqli_real_escape_string($conn, $_POST['phone']);
     
-    // Insert quick patient record
-    $sql = "INSERT INTO PATIENT (NAME, IC_NUMBER, PHONE_NUMBER, REGISTRATION_DATE) 
-            VALUES ('$name', '$ic', '$phone', NOW())";
+    // FOOLPROOF BYPASS: If IC is blank, give it a random unique string to satisfy strict database rules
+    if(empty($ic)) {
+        $ic_val = "'NO-IC-" . rand(10000, 99999) . "'";
+    } else {
+        $ic_val = "'$ic'";
+    }
+    
+    $sql = "INSERT INTO PATIENT (NAME, IC_NUMBER, PHONE_NUMBER, ADDRESS, CONNECTION_RELATIONSHIP, FOLLOW_UP_INTERVAL, COMPLAINTS, REGISTRATION_DATE) 
+            VALUES ('$name', $ic_val, '$phone', 'Walk-in / Unrecorded', 'None', 'Not Set', 'None', NOW())";
             
     if(mysqli_query($conn, $sql)) {
         $new_id = mysqli_insert_id($conn);
@@ -33,11 +44,9 @@ if(isset($_POST['process_sale'])) {
     $staff_id = mysqli_real_escape_string($conn, $_POST['staff_id']);
     $payment_method = mysqli_real_escape_string($conn, $_POST['payment_method']);
     
-    // Get amounts
     $paid_amount = floatval($_POST['paid_amount']);
     $total_amount = floatval($_POST['total_amount']);
     
-    // BACKEND AUTO-STATUS: Enforce strict logic to prevent data manipulation
     if ($paid_amount >= $total_amount && $total_amount > 0) {
         $payment_status = 'Completed';
     } elseif ($paid_amount > 0 && $paid_amount < $total_amount) {
@@ -48,14 +57,12 @@ if(isset($_POST['process_sale'])) {
 
     $sale_date = date('Y-m-d H:i:s');
 
-    // 1. Insert into SALES table
     $insert_sale = "INSERT INTO SALES (PATIENT_ID, STAFF_ID, SALE_DATE, TOTAL_AMOUNT, PAID_AMOUNT, PAYMENT_METHOD, PAYMENT_STATUS) 
                     VALUES ($patient_id, '$staff_id', '$sale_date', '$total_amount', '$paid_amount', '$payment_method', '$payment_status')";
     
     if(mysqli_query($conn, $insert_sale)) {
         $sale_id = mysqli_insert_id($conn);
 
-        // 2. Loop through dynamic product arrays
         $product_ids = $_POST['product_id'];
         $quantities = $_POST['quantity'];
         
@@ -70,15 +77,21 @@ if(isset($_POST['process_sale'])) {
         }
         header("Location: sales.php?new_sale_id=$sale_id");
         exit();
+    } else {
+        // CATCH AND DISPLAY THE ERROR IF SALE FAILS
+        $page_error = mysqli_error($conn);
     }
 }
 
-// Fetch products once to use in JavaScript template
 $products_html = '<option value="" data-price="0" data-min="0">-- Choose Product --</option>';
-$prod_res = mysqli_query($conn, "SELECT * FROM PRODUCT WHERE STOCK_QUANTITY > 0");
+$prod_res = mysqli_query($conn, "SELECT * FROM PRODUCT WHERE STOCK_QUANTITY > 0 ORDER BY BRAND_NAME ASC");
 while($prod = mysqli_fetch_assoc($prod_res)) {
     $min = isset($prod['MINIMUM_PRICE']) ? $prod['MINIMUM_PRICE'] : 0;
-    $products_html .= "<option value='{$prod['PRODUCT_ID']}' data-price='{$prod['UNIT_PRICE']}' data-min='{$min}'>{$prod['BRAND_NAME']} ({$prod['CATEGORY']}) - RM {$prod['UNIT_PRICE']}</option>";
+    $expiry_text = "";
+    if(!empty($prod['EXPIRY_DATE'])) {
+        $expiry_text = " [Exp: " . date('M y', strtotime($prod['EXPIRY_DATE'])) . "]";
+    }
+    $products_html .= "<option value='{$prod['PRODUCT_ID']}' data-price='{$prod['UNIT_PRICE']}' data-min='{$min}'>{$prod['BRAND_NAME']}{$expiry_text} ({$prod['CATEGORY']}) - RM {$prod['UNIT_PRICE']}</option>";
 }
 ?>
 <!DOCTYPE html>
@@ -129,6 +142,14 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
             <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight mt-4">Process New Sale</h1>
         </header>
 
+        <?php if(!empty($page_error)): ?>
+            <div class="bg-red-50 border border-red-500 text-red-700 p-6 rounded-2xl mb-8 shadow-sm">
+                <h3 class="font-black text-lg"><i class="fa-solid fa-triangle-exclamation mr-2"></i> Database Error Preventing Sale</h3>
+                <p class="mt-2 font-medium">MySQL reported: <span class="font-mono bg-white px-2 py-1 rounded text-red-600 border border-red-200"><?php echo $page_error; ?></span></p>
+                <p class="mt-2 text-sm italic">If the error says <strong>"Column 'PATIENT_ID' cannot be null"</strong>, you need to go to your Database Manager (phpMyAdmin) and ALTER the SALES table to allow NULL values so walk-in customers can be processed.</p>
+            </div>
+        <?php endif; ?>
+
         <form action="" method="POST" id="mainSaleForm" class="max-w-5xl space-y-8">
             <section class="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-xl">
                 <h3 class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2] mb-8">Transaction Details</h3>
@@ -145,8 +166,9 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
                             <?php 
                             $p_res = mysqli_query($conn, "SELECT PATIENT_ID, NAME, IC_NUMBER FROM PATIENT ORDER BY NAME ASC");
                             while($p = mysqli_fetch_assoc($p_res)) {
-                                $ic_display = !empty($p['IC_NUMBER']) ? " - " . $p['IC_NUMBER'] : "";
-                                echo "<option value='{$p['PATIENT_ID']}'>{$p['NAME']}{$ic_display}</option>";
+                                // Hide the random NO-IC placeholder in the dropdown
+                                $display_ic = (!empty($p['IC_NUMBER']) && strpos($p['IC_NUMBER'], 'NO-IC') === false) ? " - " . $p['IC_NUMBER'] : "";
+                                echo "<option value='{$p['PATIENT_ID']}'>{$p['NAME']}{$display_ic}</option>";
                             }
                             ?>
                         </select>
@@ -208,7 +230,6 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
 
             <section class="bg-slate-900 p-10 rounded-[2.5rem] shadow-2xl text-white">
                 <div class="grid grid-cols-1 md:grid-cols-5 gap-6 items-center">
-                    
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-2">Payment Method</label>
                         <select name="payment_method" class="w-full p-3 bg-white/10 border border-white/20 rounded-xl outline-none text-sm font-bold">
@@ -243,7 +264,6 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
                         <p class="text-[10px] font-black uppercase text-red-400 tracking-widest mb-1">Balance Due</p>
                         <p class="text-2xl font-black font-mono text-red-400">RM <span id="balance_display">0.00</span></p>
                     </div>
-
                 </div>
             </section>
 
@@ -293,7 +313,6 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
             $('.searchable-select').select2({ allowClear: true });
         });
 
-        // --- POP-UP MODAL LOGIC ---
         function openPatientModal() {
             $('#patientModal').removeClass('hidden').addClass('flex');
         }
@@ -323,8 +342,9 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
                         alert('Database Error: ' + response.message);
                     }
                 },
-                error: function() {
-                    alert('A network error occurred while adding the patient.');
+                error: function(xhr, status, error) {
+                    console.error("AJAX Error:", xhr.responseText); 
+                    alert('A network error occurred. Check browser console.');
                 },
                 complete: function() {
                     btn.html(originalText).prop('disabled', false);
@@ -332,7 +352,6 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
             });
         });
 
-        // --- DYNAMIC RECEIPT ITEMS LOGIC ---
         const rowTemplate = `
             <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                 <div class="md:col-span-6 space-y-2">
@@ -404,7 +423,6 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
             }
         }
 
-        // --- NEW CALCULATION LOGIC (TOTAL + BALANCE + STATUS) ---
         function calculateGrandTotal() {
             let total = 0;
             document.querySelectorAll('.item-row').forEach(row => {
@@ -416,7 +434,6 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
             document.getElementById('total_display').innerText = total.toFixed(2);
             document.getElementById('total_input').value = total.toFixed(2);
             
-            // Recalculate balance whenever total changes
             calculateBalance(); 
         }
 
@@ -426,26 +443,21 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
             const paid = parseFloat(paidInput.value) || 0;
             const statusDropdown = document.getElementById('auto_status');
             
-            // 1. Calculate Balance
             let balance = total - paid;
+            if (balance < 0) balance = 0;
             
-            // If they overpaid, balance drops to 0 (don't show a negative debt)
-            if (balance < 0) {
-                balance = 0;
-            }
             document.getElementById('balance_display').innerText = balance.toFixed(2);
 
-            // 2. Auto-Update Status Dropdown
             if (total > 0 && paid >= total) {
                 statusDropdown.value = 'Completed';
-                statusDropdown.classList.replace('text-slate-300', 'text-[#B9D977]'); // Turns green
+                statusDropdown.classList.replace('text-slate-300', 'text-[#B9D977]');
             } else if (paid > 0 && paid < total) {
                 statusDropdown.value = 'Partial';
-                statusDropdown.classList.replace('text-[#B9D977]', 'text-orange-400'); // Turns orange
+                statusDropdown.classList.replace('text-[#B9D977]', 'text-orange-400');
                 statusDropdown.classList.replace('text-slate-300', 'text-orange-400'); 
             } else {
                 statusDropdown.value = 'Pending';
-                statusDropdown.classList.replace('text-[#B9D977]', 'text-slate-300'); // Resets
+                statusDropdown.classList.replace('text-[#B9D977]', 'text-slate-300');
                 statusDropdown.classList.replace('text-orange-400', 'text-slate-300'); 
             }
         }

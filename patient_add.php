@@ -11,8 +11,15 @@ if(isset($_POST['register'])) {
     $interval = mysqli_real_escape_string($conn, $_POST['follow_up']);
     $complaints = mysqli_real_escape_string($conn, $_POST['complaints']);
 
+    // FOOLPROOF BYPASS: Protects against strict unique constraints
+    if(empty($ic)) {
+        $ic_val = "'NO-IC-" . rand(10000, 99999) . "'";
+    } else {
+        $ic_val = "'$ic'";
+    }
+
     $sql = "INSERT INTO PATIENT (NAME, IC_NUMBER, PHONE_NUMBER, ADDRESS, CONNECTION_RELATIONSHIP, FOLLOW_UP_INTERVAL, COMPLAINTS, REGISTRATION_DATE) 
-            VALUES ('$name', '$ic', '$phone', '$address', '$connection', '$interval', '$complaints', NOW())";
+            VALUES ('$name', $ic_val, '$phone', '$address', '$connection', '$interval', '$complaints', NOW())";
     
     if(mysqli_query($conn, $sql)) {
         header("Location: patients.php?msg=added");

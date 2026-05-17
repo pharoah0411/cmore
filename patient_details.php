@@ -1,7 +1,6 @@
 <?php 
 include('config.php'); 
 
-// Fetch the patient ID from the URL
 $id = isset($_GET['id']) ? mysqli_real_escape_string($conn, $_GET['id']) : '';
 
 if (empty($id)) {
@@ -9,7 +8,6 @@ if (empty($id)) {
     exit();
 }
 
-// Fetch basic patient details
 $sql = "SELECT * FROM PATIENT WHERE PATIENT_ID = '$id'";
 $res = mysqli_query($conn, $sql);
 $patient = mysqli_fetch_assoc($res);
@@ -61,10 +59,14 @@ if (!$patient) {
                 <section class="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40">
                     <h3 class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2] mb-8 border-b border-slate-50 pb-4">Personal Information</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        
+                        <?php if(!empty($patient['IC_NUMBER'])): ?>
                         <div>
                             <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">IC Number</p>
                             <p class="text-slate-800 font-bold font-mono text-lg"><?php echo $patient['IC_NUMBER']; ?></p>
                         </div>
+                        <?php endif; ?>
+
                         <div>
                             <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Phone Number</p>
                             <p class="text-slate-800 font-bold text-lg"><?php echo $patient['PHONE_NUMBER']; ?></p>
@@ -87,7 +89,6 @@ if (!$patient) {
                     
                     <div class="space-y-6">
                         <?php
-                        // Fetch exams for this specific patient joined with Optometrist name
                         $exam_sql = "SELECT E.*, U.NAME as DOC_NAME 
                                     FROM EYE_EXAMINATION E
                                     JOIN USER U ON E.OPTOMETRIST_ID = U.USER_ID

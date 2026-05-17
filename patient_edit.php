@@ -17,9 +17,12 @@ if(isset($_POST['update'])) {
     $interval = mysqli_real_escape_string($conn, $_POST['follow_up']);
     $complaints = mysqli_real_escape_string($conn, $_POST['complaints']);
 
+    // FIX: Send a true NULL to the database if the IC is blank
+    $ic_val = !empty($ic) ? "'$ic'" : "NULL";
+
     $update_sql = "UPDATE PATIENT SET 
                    NAME='$name', 
-                   IC_NUMBER='$ic', 
+                   IC_NUMBER=$ic_val, 
                    PHONE_NUMBER='$phone', 
                    ADDRESS='$address', 
                    CONNECTION_RELATIONSHIP='$connection', 

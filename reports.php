@@ -1,0 +1,217 @@
+<?php include('config.php'); ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>C-More | Reports & Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style> body { font-family: 'Plus Jakarta Sans', sans-serif; } </style>
+</head>
+<body class="bg-[#f8fafc] flex min-h-screen text-slate-900">
+
+    <?php include('sidebar.php'); ?>
+
+    <main class="flex-1 ml-72 p-12">
+        <header class="flex justify-between items-end mb-12">
+            <div>
+                <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">Reports & Analytics</h1>
+                <p class="text-slate-500 font-medium mt-1">Generate comprehensive insights for clinic performance.</p>
+            </div>
+            <div class="flex space-x-3">
+                <button class="bg-white border border-slate-200 text-slate-600 px-6 py-3 rounded-xl font-bold hover:bg-slate-50 transition shadow-sm flex items-center">
+                    <i class="fa-solid fa-print mr-2 text-slate-400"></i> Print View
+                </button>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+            <div class="lg:col-span-2 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2]">6-Month Revenue Trend</h3>
+                    <span class="bg-teal-50 text-[#0097B2] px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">Live</span>
+                </div>
+                <div class="relative h-64 w-full">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-slate-900 p-8 rounded-[2.5rem] border border-slate-800 shadow-2xl relative overflow-hidden flex flex-col justify-between">
+                <div class="absolute top-0 right-0 w-40 h-40 bg-[#0097B2]/20 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+                
+                <div class="relative z-10">
+                    <div class="w-12 h-12 bg-white/10 text-[#B9D977] rounded-xl flex items-center justify-center border border-white/10 mb-6 shadow-lg">
+                        <i class="fa-solid fa-sliders text-xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-white tracking-tight mb-2">Custom Builder</h2>
+                    <p class="text-slate-400 text-sm mb-6">Define your parameters to generate a specific data export.</p>
+                </div>
+
+                <form action="report_custom.php" method="GET" class="relative z-10 space-y-4">
+                    <div>
+                        <select name="type" class="w-full p-4 bg-white/5 border border-white/10 rounded-2xl outline-none text-white font-semibold focus:border-[#0097B2] transition appearance-none">
+                            <option value="sales" class="text-slate-900">Sales & Transactions</option>
+                            <option value="inventory" class="text-slate-900">Stock & Inventory Level</option>
+                            <option value="patients" class="text-slate-900">Patient Directory</option>
+                            <option value="appointments" class="text-slate-900">Clinical Appointments</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <input type="date" name="start_date" class="w-full p-4 bg-white/5 border border-white/10 rounded-2xl outline-none text-slate-300 text-sm focus:border-[#0097B2] transition">
+                        <input type="date" name="end_date" class="w-full p-4 bg-white/5 border border-white/10 rounded-2xl outline-none text-slate-300 text-sm focus:border-[#0097B2] transition">
+                    </div>
+                    <div class="pt-2 grid grid-cols-2 gap-4">
+                        <button type="submit" name="export" value="pdf" class="w-full bg-[#0097B2] text-white py-4 rounded-2xl font-bold shadow-lg shadow-teal-900/50 hover:bg-teal-500 transition-all flex justify-center items-center">
+                            <i class="fa-solid fa-file-pdf mr-2"></i> PDF
+                        </button>
+                        <button type="submit" name="export" value="excel" class="w-full bg-[#B9D977] text-slate-900 py-4 rounded-2xl font-bold shadow-lg hover:bg-lime-400 transition-all flex justify-center items-center">
+                            <i class="fa-solid fa-file-excel mr-2"></i> Excel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <h3 class="text-sm font-black uppercase tracking-[0.2em] text-slate-400 mb-6 mt-12 ml-2">Pre-configured Reports</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+            <a href="report_sales.php" class="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/30 group hover:border-[#0097B2] transition-all cursor-pointer block">
+                <div class="w-14 h-14 rounded-2xl bg-teal-50 text-[#0097B2] flex items-center justify-center text-2xl mb-6 group-hover:bg-[#0097B2] group-hover:text-white transition-colors shadow-sm">
+                    <i class="fa-solid fa-chart-pie"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Revenue Analysis</h3>
+                <p class="text-sm text-slate-500 font-medium leading-relaxed mb-6 h-10">Breakdown of clinic income, pending balances, and payment methods.</p>
+                <div class="flex items-center text-[10px] font-black uppercase text-[#0097B2] tracking-widest group-hover:translate-x-2 transition-transform">
+                    Generate <i class="fa-solid fa-arrow-right ml-2"></i>
+                </div>
+            </a>
+
+            <a href="report_inventory.php" class="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/30 group hover:border-[#0097B2] transition-all cursor-pointer block">
+                <div class="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center text-2xl mb-6 group-hover:bg-indigo-500 group-hover:text-white transition-colors shadow-sm">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Stock Valuation</h3>
+                <p class="text-sm text-slate-500 font-medium leading-relaxed mb-6 h-10">Current asset value of all frames, lenses, and accessories on hand.</p>
+                <div class="flex items-center text-[10px] font-black uppercase text-indigo-500 tracking-widest group-hover:translate-x-2 transition-transform">
+                    Generate <i class="fa-solid fa-arrow-right ml-2"></i>
+                </div>
+            </a>
+
+            <a href="report_expiry.php" class="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/30 group hover:border-orange-400 transition-all cursor-pointer block">
+                <div class="w-14 h-14 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center text-2xl mb-6 group-hover:bg-orange-500 group-hover:text-white transition-colors shadow-sm">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Expiry & Wastage</h3>
+                <p class="text-sm text-slate-500 font-medium leading-relaxed mb-6 h-10">Identify contact lenses and solutions expiring within the next 6 months.</p>
+                <div class="flex items-center text-[10px] font-black uppercase text-orange-500 tracking-widest group-hover:translate-x-2 transition-transform">
+                    Generate <i class="fa-solid fa-arrow-right ml-2"></i>
+                </div>
+            </a>
+
+            <a href="report_recall.php" class="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/30 group hover:border-purple-400 transition-all cursor-pointer block">
+                <div class="w-14 h-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-2xl mb-6 group-hover:bg-purple-600 group-hover:text-white transition-colors shadow-sm">
+                    <i class="fa-solid fa-users-viewfinder"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Patient Recall List</h3>
+                <p class="text-sm text-slate-500 font-medium leading-relaxed mb-6 h-10">List of patients due for their 6-month or 1-year follow-up exams.</p>
+                <div class="flex items-center text-[10px] font-black uppercase text-purple-600 tracking-widest group-hover:translate-x-2 transition-transform">
+                    Generate <i class="fa-solid fa-arrow-right ml-2"></i>
+                </div>
+            </a>
+
+            <a href="report_staff.php" class="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/30 group hover:border-rose-400 transition-all cursor-pointer block">
+                <div class="w-14 h-14 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center text-2xl mb-6 group-hover:bg-rose-500 group-hover:text-white transition-colors shadow-sm">
+                    <i class="fa-solid fa-user-doctor"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Staff Performance</h3>
+                <p class="text-sm text-slate-500 font-medium leading-relaxed mb-6 h-10">Sales generated and appointments handled per optometrist.</p>
+                <div class="flex items-center text-[10px] font-black uppercase text-rose-500 tracking-widest group-hover:translate-x-2 transition-transform">
+                    Generate <i class="fa-solid fa-arrow-right ml-2"></i>
+                </div>
+            </a>
+
+            <a href="report_products.php" class="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/30 group hover:border-[#B9D977] transition-all cursor-pointer block">
+                <div class="w-14 h-14 rounded-2xl bg-lime-50 text-[#85a643] flex items-center justify-center text-2xl mb-6 group-hover:bg-[#B9D977] group-hover:text-white transition-colors shadow-sm">
+                    <i class="fa-solid fa-award"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Top Selling Products</h3>
+                <p class="text-sm text-slate-500 font-medium leading-relaxed mb-6 h-10">Discover which frames and brands are performing best this quarter.</p>
+                <div class="flex items-center text-[10px] font-black uppercase text-[#85a643] tracking-widest group-hover:translate-x-2 transition-transform">
+                    Generate <i class="fa-solid fa-arrow-right ml-2"></i>
+                </div>
+            </a>
+
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+            
+            // Gradient Fill for the Line Chart
+            let gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(0, 151, 178, 0.5)'); // Teal with opacity
+            gradient.addColorStop(1, 'rgba(0, 151, 178, 0.0)'); // Fades out
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May'],
+                    datasets: [{
+                        label: 'Gross Revenue (RM)',
+                        data: [12500, 15200, 14800, 18500, 17200, 21000],
+                        borderColor: '#0097B2',
+                        backgroundColor: gradient,
+                        borderWidth: 3,
+                        pointBackgroundColor: '#ffffff',
+                        pointBorderColor: '#0097B2',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        fill: true,
+                        tension: 0.4 // Gives it that smooth, modern curve
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#0f172a',
+                            titleFont: { family: 'Plus Jakarta Sans', size: 13 },
+                            bodyFont: { family: 'Plus Jakarta Sans', size: 14, weight: 'bold' },
+                            padding: 12,
+                            cornerRadius: 8,
+                            displayColors: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return 'RM ' + context.parsed.y.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#f1f5f9', drawBorder: false },
+                            ticks: { 
+                                font: { family: 'Plus Jakarta Sans', weight: '600' },
+                                color: '#94a3b8',
+                                callback: function(value) { return 'RM ' + (value/1000) + 'k'; }
+                            }
+                        },
+                        x: {
+                            grid: { display: false, drawBorder: false },
+                            ticks: { font: { family: 'Plus Jakarta Sans', weight: '600' }, color: '#94a3b8' }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
