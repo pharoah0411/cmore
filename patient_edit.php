@@ -1,7 +1,6 @@
 <?php 
 include('config.php'); 
 
-// Fetch the patient ID from the URL
 $id = isset($_GET['id']) ? mysqli_real_escape_string($conn, $_GET['id']) : '';
 
 if (empty($id)) {
@@ -9,7 +8,6 @@ if (empty($id)) {
     exit();
 }
 
-// Handle the update request
 if(isset($_POST['update'])) {
     $name = mysqli_real_escape_string($conn, $_POST['name']);
     $ic = mysqli_real_escape_string($conn, $_POST['ic_number']);
@@ -19,7 +17,6 @@ if(isset($_POST['update'])) {
     $interval = mysqli_real_escape_string($conn, $_POST['follow_up']);
     $complaints = mysqli_real_escape_string($conn, $_POST['complaints']);
 
-    // Update only the requested attributes
     $update_sql = "UPDATE PATIENT SET 
                    NAME='$name', 
                    IC_NUMBER='$ic', 
@@ -35,7 +32,6 @@ if(isset($_POST['update'])) {
     }
 }
 
-// Fetch existing data to pre-fill the form
 $res = mysqli_query($conn, "SELECT * FROM PATIENT WHERE PATIENT_ID = '$id'");
 $row = mysqli_fetch_assoc($res);
 
@@ -77,8 +73,8 @@ if (!$row) {
                                class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none focus:bg-white transition">
                     </div>
                     <div class="space-y-2">
-                        <label class="text-[10px] font-black uppercase text-slate-400 ml-1">IC Number</label>
-                        <input type="text" name="ic_number" value="<?php echo $row['IC_NUMBER']; ?>" required 
+                        <label class="text-[10px] font-black uppercase text-slate-400 ml-1">IC Number <span class="text-slate-300 font-medium normal-case tracking-normal ml-1">(Optional)</span></label>
+                        <input type="text" name="ic_number" value="<?php echo $row['IC_NUMBER']; ?>" 
                                class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none focus:bg-white transition">
                     </div>
                     <div class="space-y-2">

@@ -2,13 +2,11 @@
 include('config.php'); 
 
 if(isset($_POST['register'])) {
-    // Existing fields
     $name = mysqli_real_escape_string($conn, $_POST['name']);
     $ic = mysqli_real_escape_string($conn, $_POST['ic_number']);
     $phone = mysqli_real_escape_string($conn, $_POST['phone']);
     $address = mysqli_real_escape_string($conn, $_POST['address']);
     
-    // New requested fields
     $connection = mysqli_real_escape_string($conn, $_POST['connection']);
     $interval = mysqli_real_escape_string($conn, $_POST['follow_up']);
     $complaints = mysqli_real_escape_string($conn, $_POST['complaints']);
@@ -50,8 +48,8 @@ if(isset($_POST['register'])) {
                         <input type="text" name="name" required class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none">
                     </div>
                     <div class="space-y-2">
-                        <label class="text-[10px] font-black uppercase text-slate-400 ml-1">IC Number</label>
-                        <input type="text" name="ic_number" required class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none">
+                        <label class="text-[10px] font-black uppercase text-slate-400 ml-1">IC Number <span class="text-slate-300 font-medium normal-case tracking-normal ml-1">(Optional)</span></label>
+                        <input type="text" name="ic_number" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none">
                     </div>
                     <div class="space-y-2">
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Phone Number</label>

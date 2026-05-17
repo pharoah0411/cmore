@@ -1,18 +1,56 @@
 <?php 
 include('config.php'); 
 
+// ==========================================
+// AJAX Handler for New Patient Pop-up
+// ==========================================
+if(isset($_POST['ajax_add_patient'])) {
+    header('Content-Type: application/json');
+    $name = mysqli_real_escape_string($conn, $_POST['name']);
+    $ic = mysqli_real_escape_string($conn, $_POST['ic_number']);
+    $phone = mysqli_real_escape_string($conn, $_POST['phone']);
+    
+    // Insert quick patient record
+    $sql = "INSERT INTO PATIENT (NAME, IC_NUMBER, PHONE_NUMBER, REGISTRATION_DATE) 
+            VALUES ('$name', '$ic', '$phone', NOW())";
+            
+    if(mysqli_query($conn, $sql)) {
+        $new_id = mysqli_insert_id($conn);
+        echo json_encode(['status' => 'success', 'id' => $new_id, 'name' => $name, 'ic' => $ic]);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => mysqli_error($conn)]);
+    }
+    exit(); 
+}
+// ==========================================
+
 if(isset($_POST['process_sale'])) {
-    $patient_id = mysqli_real_escape_string($conn, $_POST['patient_id']);
+    
+    $patient_id_raw = mysqli_real_escape_string($conn, $_POST['patient_id']);
+    // Handle empty patient ID as NULL for walk-in customers
+    $patient_id = !empty($patient_id_raw) ? "'$patient_id_raw'" : "NULL"; 
+    
     $staff_id = mysqli_real_escape_string($conn, $_POST['staff_id']);
     $payment_method = mysqli_real_escape_string($conn, $_POST['payment_method']);
-    $payment_status = mysqli_real_escape_string($conn, $_POST['payment_status']);
-    $paid_amount = mysqli_real_escape_string($conn, $_POST['paid_amount']);
-    $total_amount = mysqli_real_escape_string($conn, $_POST['total_amount']);
+    
+    // Get amounts
+    $paid_amount = floatval($_POST['paid_amount']);
+    $total_amount = floatval($_POST['total_amount']);
+    
+    // BACKEND AUTO-STATUS: Enforce strict logic to prevent data manipulation
+    if ($paid_amount >= $total_amount && $total_amount > 0) {
+        $payment_status = 'Completed';
+    } elseif ($paid_amount > 0 && $paid_amount < $total_amount) {
+        $payment_status = 'Partial';
+    } else {
+        $payment_status = 'Pending';
+    }
+
     $sale_date = date('Y-m-d H:i:s');
 
     // 1. Insert into SALES table
     $insert_sale = "INSERT INTO SALES (PATIENT_ID, STAFF_ID, SALE_DATE, TOTAL_AMOUNT, PAID_AMOUNT, PAYMENT_METHOD, PAYMENT_STATUS) 
-                    VALUES ('$patient_id', '$staff_id', '$sale_date', '$total_amount', '$paid_amount', '$payment_method', '$payment_status')";
+                    VALUES ($patient_id, '$staff_id', '$sale_date', '$total_amount', '$paid_amount', '$payment_method', '$payment_status')";
     
     if(mysqli_query($conn, $insert_sale)) {
         $sale_id = mysqli_insert_id($conn);
@@ -25,12 +63,8 @@ if(isset($_POST['process_sale'])) {
             $pid = mysqli_real_escape_string($conn, $product_ids[$i]);
             $qty = mysqli_real_escape_string($conn, $quantities[$i]);
 
-            // Only insert if a product was actually selected
             if(!empty($pid) && $qty > 0) {
-                // Insert Item into SALES_ITEM
                 mysqli_query($conn, "INSERT INTO SALES_ITEM (SALE_ID, PRODUCT_ID, QUANTITY) VALUES ('$sale_id', '$pid', '$qty')");
-                
-                // 3. Auto-deduct from Inventory
                 mysqli_query($conn, "UPDATE PRODUCT SET STOCK_QUANTITY = STOCK_QUANTITY - $qty WHERE PRODUCT_ID = '$pid'");
             }
         }
@@ -55,7 +89,33 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <style> body { font-family: 'Plus Jakarta Sans', sans-serif; } </style>
+    
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    <style> 
+        body { font-family: 'Plus Jakarta Sans', sans-serif; } 
+        .select2-container .select2-selection--single {
+            height: 56px !important;
+            border: 1px solid #f1f5f9 !important;
+            border-radius: 1rem !important;
+            background-color: #f8fafc !important;
+            display: flex;
+            align-items: center;
+            padding-left: 0.5rem;
+            font-weight: 700;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 56px !important;
+            right: 10px !important;
+        }
+        .select2-container--default .select2-selection--single:focus,
+        .select2-container--default.select2-container--open .select2-selection--single {
+            border-color: #0097B2 !important;
+            outline: none !important;
+        }
+    </style>
 </head>
 <body class="bg-[#f8fafc] flex min-h-screen text-slate-900">
 
@@ -69,23 +129,31 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
             <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight mt-4">Process New Sale</h1>
         </header>
 
-        <form action="" method="POST" class="max-w-5xl space-y-8">
+        <form action="" method="POST" id="mainSaleForm" class="max-w-5xl space-y-8">
             <section class="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-xl">
                 <h3 class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2] mb-8">Transaction Details</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-2">
-                        <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Select Patient</label>
-                        <select name="patient_id" required class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none font-bold">
-                            <option value="">-- Choose Patient --</option>
+                        <div class="flex justify-between items-center ml-1">
+                            <label class="text-[10px] font-black uppercase text-slate-400">Select Patient</label>
+                            <button type="button" onclick="openPatientModal()" class="text-[10px] font-black uppercase text-[#0097B2] hover:underline bg-teal-50 px-3 py-1.5 rounded-lg transition-colors">
+                                <i class="fa-solid fa-user-plus mr-1"></i> Quick Add Patient
+                            </button>
+                        </div>
+                        <select name="patient_id" id="patient_select" class="searchable-select w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none font-bold">
+                            <option value="">-- Walk-in / No Patient Selected --</option>
                             <?php 
-                            $p_res = mysqli_query($conn, "SELECT PATIENT_ID, NAME FROM PATIENT ORDER BY NAME ASC");
-                            while($p = mysqli_fetch_assoc($p_res)) echo "<option value='{$p['PATIENT_ID']}'>{$p['NAME']}</option>";
+                            $p_res = mysqli_query($conn, "SELECT PATIENT_ID, NAME, IC_NUMBER FROM PATIENT ORDER BY NAME ASC");
+                            while($p = mysqli_fetch_assoc($p_res)) {
+                                $ic_display = !empty($p['IC_NUMBER']) ? " - " . $p['IC_NUMBER'] : "";
+                                echo "<option value='{$p['PATIENT_ID']}'>{$p['NAME']}{$ic_display}</option>";
+                            }
                             ?>
                         </select>
                     </div>
                     <div class="space-y-2">
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Attending Staff (Optometrist)</label>
-                        <select name="staff_id" required class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none font-bold">
+                        <select name="staff_id" required class="searchable-select w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none font-bold">
                             <option value="">-- Choose Staff --</option>
                             <?php 
                             $u_res = mysqli_query($conn, "SELECT USER_ID, NAME FROM USER ORDER BY NAME ASC");
@@ -109,7 +177,7 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
                         <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                             <div class="md:col-span-6 space-y-2">
                                 <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Select Product</label>
-                                <select name="product_id[]" required onchange="updateRowPrice(this)" class="product-select w-full p-4 bg-white border border-slate-100 rounded-xl focus:border-[#0097B2] outline-none font-bold text-sm">
+                                <select name="product_id[]" required onchange="updateRowPrice(this)" class="product-select searchable-select w-full p-4 bg-white border border-slate-100 rounded-xl focus:border-[#0097B2] outline-none font-bold text-sm">
                                     <?php echo $products_html; ?>
                                 </select>
                             </div>
@@ -130,19 +198,17 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
                                 </button>
                             </div>
                         </div>
-
                         <div class="warning-msg hidden mt-4 bg-red-50 border border-red-100 p-3 rounded-xl flex items-center space-x-3 transition-all duration-300">
                             <i class="fa-solid fa-lock text-red-500 text-xs ml-2"></i>
-                            <p class="text-xs text-red-600 font-medium">
-                                <strong>Below minimum!</strong> Minimum threshold is RM <span class="min-display font-bold"></span>.
-                            </p>
+                            <p class="text-xs text-red-600 font-medium"><strong>Below minimum!</strong> Threshold is RM <span class="min-display font-bold"></span>.</p>
                         </div>
                     </div>
                 </div>
             </section>
 
             <section class="bg-slate-900 p-10 rounded-[2.5rem] shadow-2xl text-white">
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-6 items-center">
+                    
                     <div>
                         <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-2">Payment Method</label>
                         <select name="payment_method" class="w-full p-3 bg-white/10 border border-white/20 rounded-xl outline-none text-sm font-bold">
@@ -152,23 +218,32 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
                             <option value="E-wallet" class="text-black">E-Wallet</option>
                         </select>
                     </div>
+
                     <div>
-                        <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-2">Status</label>
-                        <select name="payment_status" class="w-full p-3 bg-white/10 border border-white/20 rounded-xl outline-none text-sm font-bold">
-                            <option value="Completed" class="text-black">Completed</option>
+                        <label class="text-[10px] font-black uppercase text-[#B9D977] tracking-widest block mb-2">Amount Paid (RM)</label>
+                        <input type="number" step="0.01" name="paid_amount" required oninput="calculateBalance()" placeholder="0.00" class="w-full p-3 bg-white border border-white rounded-xl outline-none font-mono font-bold text-slate-900 focus:ring-2 focus:ring-[#B9D977]">
+                    </div>
+
+                    <div>
+                        <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-2">Status (Auto)</label>
+                        <select name="payment_status" id="auto_status" class="w-full p-3 bg-white/5 border border-white/10 rounded-xl outline-none text-sm font-bold pointer-events-none appearance-none text-slate-300">
+                            <option value="Pending" class="text-black">Pending (No Payment)</option>
                             <option value="Partial" class="text-black">Partial / Deposit</option>
-                            <option value="Pending" class="text-black">Pending</option>
+                            <option value="Completed" class="text-black">Completed (Paid Full)</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest block mb-2">Amount Paid (RM)</label>
-                        <input type="number" step="0.01" name="paid_amount" required class="w-full p-3 bg-white/10 border border-white/20 rounded-xl outline-none font-mono font-bold">
-                    </div>
-                    <div class="text-right">
-                        <p class="text-[10px] font-black uppercase text-[#B9D977] tracking-widest mb-1">Total Due</p>
-                        <p class="text-3xl font-black font-mono">RM <span id="total_display">0.00</span></p>
+
+                    <div class="text-right border-r border-white/10 pr-6">
+                        <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Total Due</p>
+                        <p class="text-2xl font-black font-mono">RM <span id="total_display">0.00</span></p>
                         <input type="hidden" name="total_amount" id="total_input" value="0">
                     </div>
+
+                    <div class="text-right pl-2">
+                        <p class="text-[10px] font-black uppercase text-red-400 tracking-widest mb-1">Balance Due</p>
+                        <p class="text-2xl font-black font-mono text-red-400">RM <span id="balance_display">0.00</span></p>
+                    </div>
+
                 </div>
             </section>
 
@@ -180,12 +255,88 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
         </form>
     </main>
 
+    <div id="patientModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm transition-opacity">
+        <div class="bg-white w-full max-w-lg p-10 rounded-[2.5rem] shadow-2xl border border-slate-100 relative">
+            <button type="button" onclick="closePatientModal()" class="absolute top-6 right-6 w-10 h-10 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition">
+                <i class="fa-solid fa-times"></i>
+            </button>
+            
+            <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight mb-2">Quick Add Patient</h2>
+            <p class="text-sm text-slate-500 mb-8 font-medium">Add basic details. You can complete their clinical profile later.</p>
+            
+            <form id="ajaxPatientForm" class="space-y-5">
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Full Name</label>
+                    <input type="text" name="name" required class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none">
+                </div>
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black uppercase text-slate-400 ml-1">IC Number <span class="text-slate-300 font-medium normal-case tracking-normal ml-1">(Optional)</span></label>
+                    <input type="text" name="ic_number" class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none">
+                </div>
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Phone Number</label>
+                    <input type="text" name="phone" required class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none">
+                </div>
+                
+                <div class="pt-4 flex justify-end space-x-3">
+                    <button type="button" onclick="closePatientModal()" class="px-6 py-3 font-bold text-slate-500 hover:text-slate-700 transition">Cancel</button>
+                    <button type="submit" id="savePatientBtn" class="bg-[#0097B2] text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-teal-100 hover:bg-teal-600 transition flex items-center">
+                        <i class="fa-solid fa-save mr-2"></i> Save & Select
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
-        // HTML Template for a new row
+        $(document).ready(function() {
+            $('.searchable-select').select2({ allowClear: true });
+        });
+
+        // --- POP-UP MODAL LOGIC ---
+        function openPatientModal() {
+            $('#patientModal').removeClass('hidden').addClass('flex');
+        }
+        function closePatientModal() {
+            $('#patientModal').removeClass('flex').addClass('hidden');
+            $('#ajaxPatientForm')[0].reset();
+        }
+
+        $('#ajaxPatientForm').on('submit', function(e) {
+            e.preventDefault();
+            let btn = $('#savePatientBtn');
+            let originalText = btn.html();
+            btn.html('<i class="fa-solid fa-spinner fa-spin mr-2"></i> Saving...').prop('disabled', true);
+
+            $.ajax({
+                type: 'POST',
+                url: '', 
+                data: $(this).serialize() + '&ajax_add_patient=1',
+                dataType: 'json',
+                success: function(response) {
+                    if(response.status === 'success') {
+                        let optionText = response.name + (response.ic ? ' - ' + response.ic : '');
+                        let newOption = new Option(optionText, response.id, true, true);
+                        $('#patient_select').append(newOption).trigger('change');
+                        closePatientModal();
+                    } else {
+                        alert('Database Error: ' + response.message);
+                    }
+                },
+                error: function() {
+                    alert('A network error occurred while adding the patient.');
+                },
+                complete: function() {
+                    btn.html(originalText).prop('disabled', false);
+                }
+            });
+        });
+
+        // --- DYNAMIC RECEIPT ITEMS LOGIC ---
         const rowTemplate = `
             <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                 <div class="md:col-span-6 space-y-2">
-                    <select name="product_id[]" required onchange="updateRowPrice(this)" class="product-select w-full p-4 bg-white border border-slate-100 rounded-xl focus:border-[#0097B2] outline-none font-bold text-sm">
+                    <select name="product_id[]" required onchange="updateRowPrice(this)" class="product-select searchable-select w-full p-4 bg-white border border-slate-100 rounded-xl focus:border-[#0097B2] outline-none font-bold text-sm">
                         <?php echo addslashes($products_html); ?>
                     </select>
                 </div>
@@ -203,9 +354,7 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
             </div>
             <div class="warning-msg hidden mt-4 bg-red-50 border border-red-100 p-3 rounded-xl flex items-center space-x-3 transition-all duration-300">
                 <i class="fa-solid fa-lock text-red-500 text-xs ml-2"></i>
-                <p class="text-xs text-red-600 font-medium">
-                    <strong>Below minimum!</strong> Minimum threshold is RM <span class="min-display font-bold"></span>.
-                </p>
+                <p class="text-xs text-red-600 font-medium"><strong>Below minimum!</strong> Threshold is RM <span class="min-display font-bold"></span>.</p>
             </div>
         `;
 
@@ -215,41 +364,33 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
             newRow.className = 'item-row relative bg-slate-50 p-6 rounded-2xl border border-slate-100 mt-4';
             newRow.innerHTML = rowTemplate;
             container.appendChild(newRow);
+            $(newRow).find('.searchable-select').select2();
         }
 
         function removeReceiptItem(btnElement) {
             const row = btnElement.closest('.item-row');
+            $(row).find('.searchable-select').select2('destroy');
             row.remove();
             calculateGrandTotal();
         }
 
-        // Triggered when a product dropdown is changed
         function updateRowPrice(selectElement) {
             const row = selectElement.closest('.item-row');
             const priceInput = row.querySelector('.custom-price-input');
             const selectedOption = selectElement.options[selectElement.selectedIndex];
-            
             const defaultPrice = selectedOption.getAttribute('data-price');
             
-            if (defaultPrice > 0) {
-                priceInput.value = parseFloat(defaultPrice).toFixed(2);
-            } else {
-                priceInput.value = '';
-            }
-            
+            priceInput.value = (defaultPrice > 0) ? parseFloat(defaultPrice).toFixed(2) : '';
             checkRowThreshold(priceInput);
             calculateGrandTotal();
         }
 
-        // Triggered when someone types a custom price
         function checkRowThreshold(priceInputElement) {
             const row = priceInputElement.closest('.item-row');
             const selectElement = row.querySelector('.product-select');
             const selectedOption = selectElement.options[selectElement.selectedIndex];
-            
             const minPrice = parseFloat(selectedOption.getAttribute('data-min'));
             const currentPrice = parseFloat(priceInputElement.value);
-            
             const warningDiv = row.querySelector('.warning-msg');
             const minDisplay = row.querySelector('.min-display');
 
@@ -263,12 +404,10 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
             }
         }
 
-        // Iterates through all rows and calculates total
+        // --- NEW CALCULATION LOGIC (TOTAL + BALANCE + STATUS) ---
         function calculateGrandTotal() {
             let total = 0;
-            const rows = document.querySelectorAll('.item-row');
-            
-            rows.forEach(row => {
+            document.querySelectorAll('.item-row').forEach(row => {
                 const price = parseFloat(row.querySelector('.custom-price-input').value) || 0;
                 const qty = parseInt(row.querySelector('.qty-input').value) || 0;
                 total += (price * qty);
@@ -276,6 +415,39 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
             
             document.getElementById('total_display').innerText = total.toFixed(2);
             document.getElementById('total_input').value = total.toFixed(2);
+            
+            // Recalculate balance whenever total changes
+            calculateBalance(); 
+        }
+
+        function calculateBalance() {
+            const total = parseFloat(document.getElementById('total_input').value) || 0;
+            const paidInput = document.querySelector('input[name="paid_amount"]');
+            const paid = parseFloat(paidInput.value) || 0;
+            const statusDropdown = document.getElementById('auto_status');
+            
+            // 1. Calculate Balance
+            let balance = total - paid;
+            
+            // If they overpaid, balance drops to 0 (don't show a negative debt)
+            if (balance < 0) {
+                balance = 0;
+            }
+            document.getElementById('balance_display').innerText = balance.toFixed(2);
+
+            // 2. Auto-Update Status Dropdown
+            if (total > 0 && paid >= total) {
+                statusDropdown.value = 'Completed';
+                statusDropdown.classList.replace('text-slate-300', 'text-[#B9D977]'); // Turns green
+            } else if (paid > 0 && paid < total) {
+                statusDropdown.value = 'Partial';
+                statusDropdown.classList.replace('text-[#B9D977]', 'text-orange-400'); // Turns orange
+                statusDropdown.classList.replace('text-slate-300', 'text-orange-400'); 
+            } else {
+                statusDropdown.value = 'Pending';
+                statusDropdown.classList.replace('text-[#B9D977]', 'text-slate-300'); // Resets
+                statusDropdown.classList.replace('text-orange-400', 'text-slate-300'); 
+            }
         }
     </script>
 </body>
