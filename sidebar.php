@@ -50,13 +50,13 @@
         nav_item('appointment.php', 'fa-solid fa-calendar-check', 'Appointments', $current);
         nav_item('reports.php', 'fa-solid fa-chart-line', 'Reports & Analytics', $current);
         nav_item('sales.php', 'fa-solid fa-receipt', 'Sales & Invoices', $current); // <-- SALES IS BACK FOR EVERYONE
+        nav_item('inventory.php', 'fa-solid fa-box-archive', 'Inventory', $current);
         
         // ==========================================
         // 2. OPTOMETRIST & ADMIN ONLY
         // ==========================================
         if ($user_role === 'Admin' || $user_role === 'Optometrist') {
             nav_item('exam.php', 'fa-solid fa-eye', 'Clinical Exams', $current);
-            nav_item('inventory.php', 'fa-solid fa-box-archive', 'Inventory', $current);
         }
 
         // ==========================================
