@@ -49,4 +49,36 @@ if (!$conn) {
             <strong>Connection Error:</strong> " . mysqli_connect_error() . "
          </div>");
 }
+
+// ==========================================
+// SESSION LOCK ENFORCEMENT
+// ==========================================
+// If the session is locked, force them to the lock screen.
+$current_page = basename($_SERVER['PHP_SELF']);
+
+// We exclude login.php and lock.php to prevent infinite redirect loops
+if (isset($_SESSION['is_locked']) && $_SESSION['is_locked'] === true) {
+    if ($current_page !== 'lock.php' && $current_page !== 'login.php') {
+        header("Location: lock.php");
+        exit();
+    }
+}
+
+// ==========================================
+// GLOBAL AUDIT LOG FUNCTION
+// ==========================================
+// Use this function across your system to track actions.
+// Example usage: systemLog($conn, "Added new patient", "patients", $new_patient_id);
+function systemLog($conn, $action, $table_name = NULL, $record_id = NULL) {
+    if(isset($_SESSION['USER_ID'])) {
+        $uid = $_SESSION['USER_ID'];
+        $act = mysqli_real_escape_string($conn, $action);
+        $tbl = $table_name ? "'" . mysqli_real_escape_string($conn, $table_name) . "'" : "NULL";
+        $rid = $record_id ? intval($record_id) : "NULL";
+        
+        $sql = "INSERT INTO audit_log (USER_ID, ACTION, TABLE_NAME, RECORD_ID) 
+                VALUES ($uid, '$act', $tbl, $rid)";
+        mysqli_query($conn, $sql);
+    }
+}
 ?>

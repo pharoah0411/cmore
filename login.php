@@ -2,12 +2,10 @@
 session_start();
 include('config.php');
 
-// Import PHPMailer classes into the global namespace
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
 use PHPMailer\PHPMailer\Exception;
 
-// Load PHPMailer files manually (No Composer required!)
 require 'PHPMailer/src/Exception.php';
 require 'PHPMailer/src/PHPMailer.php';
 require 'PHPMailer/src/SMTP.php';
@@ -16,11 +14,9 @@ $error = "";
 $success = "";
 $step = isset($_SESSION['step']) ? $_SESSION['step'] : 'credentials';
 
-// Helper function to send email via PHPMailer
 function sendSystemEmail($toEmail, $toName, $otp, $purpose) {
     $mail = new PHPMailer(true);
     try {
-        // Server settings
         $mail->isSMTP();
         $mail->Host       = $_ENV['SMTP_HOST'];
         $mail->SMTPAuth   = true;
@@ -29,11 +25,9 @@ function sendSystemEmail($toEmail, $toName, $otp, $purpose) {
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
         $mail->Port       = $_ENV['SMTP_PORT'];
 
-        // Recipients
         $mail->setFrom($_ENV['SMTP_USER'], 'C-More Clinical Suite');
         $mail->addAddress($toEmail, $toName);
 
-        // Content
         $mail->isHTML(true);
         if($purpose == 'login') {
             $mail->Subject = 'C-More Clinical Suite - Login Verification';
@@ -46,13 +40,11 @@ function sendSystemEmail($toEmail, $toName, $otp, $purpose) {
         $mail->send();
         return true;
     } catch (Exception $e) {
-        return false; // Email failed
+        return false; 
     }
 }
 
-// ==========================================
 // 1. HANDLE LOGIN SUBMISSION
-// ==========================================
 if(isset($_POST['verify_credentials'])) {
     $email = mysqli_real_escape_string($conn, $_POST['email']);
     $password = $_POST['password']; 
@@ -62,22 +54,44 @@ if(isset($_POST['verify_credentials'])) {
     
     if($row = mysqli_fetch_assoc($res)) {
         if($password === $row['PASSWORD']) {
-            $otp = rand(100000, 999999);
             
-            $_SESSION['temp_user_id'] = $row['USER_ID'];
-            $_SESSION['temp_email'] = $row['EMAIL'];
-            $_SESSION['temp_name'] = $row['NAME'];
-            $_SESSION['force_pw_change'] = $row['FORCE_PW_CHANGE'];
-            $_SESSION['otp'] = $otp;
-            $_SESSION['otp_purpose'] = 'login';
-            
-            // Send email using the new PHPMailer function
-            if(sendSystemEmail($email, $row['NAME'], $otp, 'login')) {
-                $_SESSION['step'] = 'otp';
-                header("Location: login.php");
-                exit();
+            if ($row['FIRST_LOGIN_OTP'] == 1) {
+                $otp = rand(100000, 999999);
+                
+                $_SESSION['temp_user_id'] = $row['USER_ID'];
+                $_SESSION['temp_email'] = $row['EMAIL'];
+                $_SESSION['temp_name'] = $row['NAME'];
+                $_SESSION['temp_role'] = $row['ROLE']; // Save Role temp
+                $_SESSION['first_login_otp'] = $row['FIRST_LOGIN_OTP'];
+                $_SESSION['otp'] = $otp;
+                $_SESSION['otp_purpose'] = 'login';
+                
+                if(sendSystemEmail($email, $row['NAME'], $otp, 'login')) {
+                    $_SESSION['step'] = 'otp';
+                    header("Location: login.php");
+                    exit();
+                } else {
+                    $error = "Failed to send OTP email. Check your SMTP settings in .env.";
+                }
             } else {
-                $error = "Failed to send OTP email. Check your SMTP settings in .env.";
+                $_SESSION['USER_ID'] = $row['USER_ID'];
+                $_SESSION['NAME'] = $row['NAME'];
+                $_SESSION['ROLE'] = $row['ROLE']; // Set Permanent Role
+                
+                // Track Login in Audit Log
+                systemLog($conn, 'User logged in successfully');
+                
+                unset($_SESSION['temp_user_id']);
+                unset($_SESSION['temp_email']);
+                unset($_SESSION['temp_name']);
+                unset($_SESSION['temp_role']);
+                unset($_SESSION['first_login_otp']);
+                unset($_SESSION['otp']);
+                unset($_SESSION['otp_purpose']);
+                unset($_SESSION['step']);
+                
+                header("Location: directory.php");
+                exit();
             }
         } else {
             $error = "Invalid email or password.";
@@ -87,9 +101,7 @@ if(isset($_POST['verify_credentials'])) {
     }
 }
 
-// ==========================================
 // 2. HANDLE FORGOT PASSWORD SUBMISSION
-// ==========================================
 if(isset($_POST['trigger_forgot_password'])) {
     $email = mysqli_real_escape_string($conn, $_POST['forgot_email']);
     
@@ -102,42 +114,44 @@ if(isset($_POST['trigger_forgot_password'])) {
         $_SESSION['temp_user_id'] = $row['USER_ID'];
         $_SESSION['temp_email'] = $row['EMAIL'];
         $_SESSION['temp_name'] = $row['NAME'];
+        $_SESSION['temp_role'] = $row['ROLE'];
         $_SESSION['otp'] = $otp;
         $_SESSION['otp_purpose'] = 'forgot_password';
         
-        // Send email using the new PHPMailer function
         sendSystemEmail($email, $row['NAME'], $otp, 'forgot_password');
         
         $_SESSION['step'] = 'otp';
         header("Location: login.php");
         exit();
     } else {
-        // Show success anyway to prevent email enumeration attacks
         $_SESSION['step'] = 'otp'; 
         header("Location: login.php");
         exit();
     }
 }
 
-// ==========================================
 // 3. HANDLE OTP VERIFICATION
-// ==========================================
 if(isset($_POST['verify_otp'])) {
     $entered_otp = $_POST['otp_code'];
     
     if($entered_otp == $_SESSION['otp']) {
-        if($_SESSION['otp_purpose'] == 'forgot_password' || $_SESSION['force_pw_change'] == 1) {
+        if($_SESSION['otp_purpose'] == 'forgot_password' || (isset($_SESSION['first_login_otp']) && $_SESSION['first_login_otp'] == 1)) {
             $_SESSION['step'] = 'change_password';
             header("Location: login.php");
             exit();
         } else {
             $_SESSION['USER_ID'] = $_SESSION['temp_user_id'];
             $_SESSION['NAME'] = $_SESSION['temp_name'];
+            $_SESSION['ROLE'] = $_SESSION['temp_role']; // Set Permanent Role
+            
+            // Track Login in Audit Log
+            systemLog($conn, 'User logged in successfully');
             
             unset($_SESSION['temp_user_id']);
             unset($_SESSION['temp_email']);
             unset($_SESSION['temp_name']);
-            unset($_SESSION['force_pw_change']);
+            unset($_SESSION['temp_role']);
+            unset($_SESSION['first_login_otp']); 
             unset($_SESSION['otp']);
             unset($_SESSION['otp_purpose']);
             unset($_SESSION['step']);
@@ -150,9 +164,7 @@ if(isset($_POST['verify_otp'])) {
     }
 }
 
-// ==========================================
 // 4. HANDLE PASSWORD CHANGE SUBMISSION
-// ==========================================
 if(isset($_POST['save_new_password'])) {
     $new_pw = $_POST['new_password'];
     $confirm_pw = $_POST['confirm_password'];
@@ -162,16 +174,20 @@ if(isset($_POST['save_new_password'])) {
             $uid = $_SESSION['temp_user_id'];
             $escaped_pw = mysqli_real_escape_string($conn, $new_pw);
             
-            // Update DB and remove the force change flag
-            $sql = "UPDATE user SET PASSWORD = '$escaped_pw', FORCE_PW_CHANGE = 0 WHERE USER_ID = $uid";
+            $sql = "UPDATE user SET PASSWORD = '$escaped_pw', FIRST_LOGIN_OTP = 0 WHERE USER_ID = $uid";
             if(mysqli_query($conn, $sql)) {
                 $_SESSION['USER_ID'] = $_SESSION['temp_user_id'];
                 $_SESSION['NAME'] = $_SESSION['temp_name'];
+                $_SESSION['ROLE'] = $_SESSION['temp_role']; // Set Permanent Role
+                
+                // Track Password Change and Login in Audit Log
+                systemLog($conn, 'User changed password and logged in');
                 
                 unset($_SESSION['temp_user_id']);
                 unset($_SESSION['temp_email']);
                 unset($_SESSION['temp_name']);
-                unset($_SESSION['force_pw_change']);
+                unset($_SESSION['temp_role']);
+                unset($_SESSION['first_login_otp']); 
                 unset($_SESSION['otp']);
                 unset($_SESSION['otp_purpose']);
                 unset($_SESSION['step']);
@@ -189,9 +205,6 @@ if(isset($_POST['save_new_password'])) {
     }
 }
 
-// ==========================================
-// CANCEL / GO BACK ACTIONS
-// ==========================================
 if(isset($_GET['action'])) {
     if($_GET['action'] == 'cancel') {
         session_destroy();
@@ -221,7 +234,6 @@ $step = isset($_SESSION['step']) ? $_SESSION['step'] : 'credentials';
 
     <div class="max-w-4xl w-full bg-white rounded-[3rem] shadow-2xl shadow-slate-200/50 overflow-hidden flex flex-col md:flex-row border border-slate-100">
         
-        <!-- Left Branding Panel -->
         <div class="md:w-1/2 bg-slate-900 p-12 flex flex-col justify-center items-center relative overflow-hidden text-center">
             <div class="absolute top-0 right-0 w-64 h-64 bg-[#0097B2]/20 rounded-full -mr-32 -mt-32 blur-3xl"></div>
             <div class="absolute bottom-0 left-0 w-48 h-48 bg-[#B9D977]/10 rounded-full -ml-24 -mb-24 blur-3xl"></div>
@@ -234,7 +246,6 @@ $step = isset($_SESSION['step']) ? $_SESSION['step'] : 'credentials';
             <p class="text-slate-400 mt-3 text-sm leading-relaxed relative z-10 font-medium">Secure clinic management and optical inventory system.</p>
         </div>
 
-        <!-- Right Form Panel -->
         <div class="md:w-1/2 p-12 flex flex-col justify-center bg-white">
             
             <?php if($error): ?>
@@ -245,7 +256,6 @@ $step = isset($_SESSION['step']) ? $_SESSION['step'] : 'credentials';
             <?php endif; ?>
 
             <?php if($step == 'credentials'): ?>
-                <!-- STATE: STANDARD LOGIN -->
                 <div class="mb-10">
                     <h3 class="text-3xl font-black text-slate-900 tracking-tight">Welcome Back</h3>
                     <p class="text-slate-500 font-medium mt-1">Please enter your credentials to continue.</p>
@@ -276,7 +286,6 @@ $step = isset($_SESSION['step']) ? $_SESSION['step'] : 'credentials';
                 </form>
 
             <?php elseif($step == 'forgot_email'): ?>
-                <!-- STATE: FORGOT PASSWORD REQUEST -->
                 <div class="mb-10">
                     <h3 class="text-3xl font-black text-slate-900 tracking-tight">Reset Password</h3>
                     <p class="text-slate-500 font-medium mt-1">Enter your email to receive a verification code.</p>
@@ -301,7 +310,6 @@ $step = isset($_SESSION['step']) ? $_SESSION['step'] : 'credentials';
                 </form>
 
             <?php elseif($step == 'otp'): ?>
-                <!-- STATE: ENTER OTP (Used for both Login & Reset) -->
                 <div class="mb-8 text-center">
                     <div class="w-16 h-16 bg-[#0097B2]/10 text-[#0097B2] rounded-full flex items-center justify-center text-3xl mx-auto mb-4 shadow-inner">
                         <i class="fa-solid fa-shield-check"></i>
@@ -329,7 +337,6 @@ $step = isset($_SESSION['step']) ? $_SESSION['step'] : 'credentials';
                 </form>
                 
             <?php elseif($step == 'change_password'): ?>
-                <!-- STATE: FORCE PASSWORD CHANGE OR RESET -->
                 <div class="mb-10">
                     <h3 class="text-3xl font-black text-slate-900 tracking-tight">Update Password</h3>
                     <p class="text-slate-500 font-medium mt-1">
