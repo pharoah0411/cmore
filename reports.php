@@ -50,19 +50,44 @@
                 </div>
 
                 <form action="report_custom.php" method="GET" class="relative z-10 space-y-4">
-                    <div>
-                        <select name="type" class="w-full p-4 bg-white/5 border border-white/10 rounded-2xl outline-none text-white font-semibold focus:border-[#0097B2] transition appearance-none">
-                            <option value="sales" class="text-slate-900">Sales & Transactions</option>
-                            <option value="inventory" class="text-slate-900">Stock & Inventory Level</option>
-                            <option value="patients" class="text-slate-900">Patient Directory</option>
-                            <option value="appointments" class="text-slate-900">Clinical Appointments</option>
-                        </select>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-black uppercase tracking-widest text-white ml-1">Report Type</label>
+                            <select name="type" class="w-full p-4 bg-white/5 border border-white/10 rounded-2xl outline-none text-white font-semibold focus:border-[#0097B2] transition appearance-none">
+                                <option value="sales" class="text-slate-900">Sales & Transactions</option>
+                                <option value="inventory" class="text-slate-900">Stock & Inventory Level</option>
+                                <option value="patients" class="text-slate-900">Patient Directory</option>
+                                <option value="appointments" class="text-slate-900">Clinical Appointments</option>
+                            </select>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-black uppercase tracking-widest text-white ml-1">Timeframe</label>
+                            <select id="report_period" name="period" onchange="updateReportPeriodFields()" class="w-full p-4 bg-white/5 border border-white/10 rounded-2xl outline-none text-white font-semibold focus:border-[#0097B2] transition appearance-none">
+                                <option value="last_6_months" class="text-slate-900">Last 6 months</option>
+                                <option value="last_12_months" class="text-slate-900">Last 12 months</option>
+                                <option value="month" class="text-slate-900">Specific month</option>
+                                <option value="custom" class="text-slate-900">Custom range</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <input type="date" name="start_date" class="w-full p-4 bg-white/5 border border-white/10 rounded-2xl outline-none text-slate-300 text-sm focus:border-[#0097B2] transition">
-                        <input type="date" name="end_date" class="w-full p-4 bg-white/5 border border-white/10 rounded-2xl outline-none text-slate-300 text-sm focus:border-[#0097B2] transition">
+                    <div id="month_picker_field" class="space-y-2 hidden">
+                        <label class="text-[10px] font-black uppercase tracking-widest text-white ml-1">Choose month</label>
+                        <input type="month" name="month" class="w-full p-4 bg-white/5 border border-white/10 rounded-2xl outline-none text-white font-semibold focus:border-[#0097B2] transition">
                     </div>
-                    <div class="pt-2 grid grid-cols-2 gap-4">
+                    <div id="custom_range_fields" class="grid grid-cols-1 lg:grid-cols-2 gap-4 hidden">
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-black uppercase tracking-widest text-white ml-1">Start date</label>
+                            <input type="date" name="start_date" class="w-full p-4 bg-white/5 border border-white/10 rounded-2xl outline-none text-white font-semibold focus:border-[#0097B2] transition">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-black uppercase tracking-widest text-white ml-1">End date</label>
+                            <input type="date" name="end_date" class="w-full p-4 bg-white/5 border border-white/10 rounded-2xl outline-none text-white font-semibold focus:border-[#0097B2] transition">
+                        </div>
+                    </div>
+                    <div class="pt-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <button type="submit" name="action" value="view" class="w-full bg-[#0097B2] text-white py-4 rounded-2xl font-bold shadow-lg shadow-teal-900/50 hover:bg-teal-500 transition-all flex justify-center items-center">
+                            <i class="fa-solid fa-eye mr-2"></i> View Report
+                        </button>
                         <button type="submit" name="export" value="pdf" class="w-full bg-[#0097B2] text-white py-4 rounded-2xl font-bold shadow-lg shadow-teal-900/50 hover:bg-teal-500 transition-all flex justify-center items-center">
                             <i class="fa-solid fa-file-pdf mr-2"></i> PDF
                         </button>
@@ -71,6 +96,14 @@
                         </button>
                     </div>
                 </form>
+                <script>
+                    function updateReportPeriodFields() {
+                        const period = document.getElementById('report_period').value;
+                        document.getElementById('month_picker_field').classList.toggle('hidden', period !== 'month');
+                        document.getElementById('custom_range_fields').classList.toggle('hidden', period !== 'custom');
+                    }
+                    document.addEventListener('DOMContentLoaded', updateReportPeriodFields);
+                </script>
             </div>
         </div>
 

@@ -1,4 +1,20 @@
 <?php
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
+
+$current_page = basename($_SERVER['PHP_SELF']);
+
+if (empty($_SESSION['USER_ID'])) {
+    if ($current_page !== 'login.php') {
+        header('Location: login.php');
+        exit();
+    }
+} elseif ($current_page === 'login.php' && !isset($_GET['action'])) {
+    header('Location: directory.php');
+    exit();
+}
+
 // Secure .env parser for native PHP
 $env_path = __DIR__ . '/.env';
 if (file_exists($env_path)) {

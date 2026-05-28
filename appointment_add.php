@@ -61,8 +61,8 @@ if(isset($_POST['book_appointment'])) {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="space-y-2">
                     <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Select Patient</label>
-                    <select name="patient_id" required class="searchable-select w-full p-4 outline-none">
-                        <option value="">-- Search Patient Name --</option>
+                    <select name="patient_id" required data-placeholder="Search patient name..." class="searchable-select w-full p-4 outline-none">
+                        <option value=""></option>
                         <?php 
                         $p_res = mysqli_query($conn, "SELECT PATIENT_ID, NAME, PHONE_NUMBER FROM PATIENT ORDER BY NAME ASC");
                         while($p = mysqli_fetch_assoc($p_res)) {
@@ -74,8 +74,8 @@ if(isset($_POST['book_appointment'])) {
                 
                 <div class="space-y-2">
                     <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Attending Optometrist</label>
-                    <select name="staff_id" required class="searchable-select w-full p-4 outline-none">
-                        <option value="">-- Select Optometrist --</option>
+                    <select name="staff_id" required data-placeholder="Search optometrist..." class="searchable-select w-full p-4 outline-none">
+                        <option value=""></option>
                         <?php 
                         $u_res = mysqli_query($conn, "SELECT USER_ID, NAME FROM USER ORDER BY NAME ASC");
                         while($u = mysqli_fetch_assoc($u_res)) {
@@ -125,7 +125,14 @@ if(isset($_POST['book_appointment'])) {
 
     <script>
         $(document).ready(function() {
-            $('.searchable-select').select2();
+            $('.searchable-select').each(function() {
+                $(this).select2({
+                    width: '100%',
+                    placeholder: $(this).data('placeholder') || 'Search...',
+                    allowClear: true,
+                    dropdownParent: $(this).closest('form').length ? $(this).closest('form') : $('body')
+                });
+            });
         });
 
         const dateInput = document.getElementById('appt_date');

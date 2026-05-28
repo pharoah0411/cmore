@@ -1,3 +1,4 @@
+<?php if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); } ?>
 <aside class="w-72 bg-[#0f172a] text-slate-300 flex flex-col fixed h-full shadow-2xl z-50">
     <div class="p-10 flex flex-col items-center">
         <div class="relative group">
@@ -40,12 +41,15 @@
     <div class="p-6 m-4 rounded-2xl bg-slate-800/40 border border-slate-700/50">
         <div class="flex items-center space-x-3">
             <div class="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-[#0097B2] to-[#B9D977] flex items-center justify-center text-white font-black shadow-lg">
-                UT
+                <?php echo isset($_SESSION['NAME']) ? strtoupper(substr($_SESSION['NAME'], 0, 2)) : 'UT'; ?>
             </div>
             <div class="overflow-hidden">
-                <p class="text-xs font-bold text-white truncate">UTeM Admin</p>
-                <p class="text-[9px] text-slate-500 uppercase font-black">System Developer</p>
+                <p class="text-xs font-bold text-white truncate"><?php echo htmlspecialchars($_SESSION['NAME'] ?? 'Unknown User'); ?></p>
+                <p class="text-[9px] text-slate-500 uppercase font-black">Logged in</p>
             </div>
+        </div>
+        <div class="mt-4">
+            <a href="login.php?action=cancel" class="block w-full text-center py-3 rounded-2xl bg-[#0097B2] text-white text-xs font-bold uppercase tracking-[0.15em] hover:bg-[#0d8a9d] transition">Logout</a>
         </div>
     </div>
 </aside>

@@ -38,8 +38,8 @@ if(isset($_POST['ajax_add_patient'])) {
 if(isset($_POST['process_sale'])) {
     
     $patient_id_raw = mysqli_real_escape_string($conn, $_POST['patient_id']);
-    // Handle empty patient ID as NULL for walk-in customers
-    $patient_id = !empty($patient_id_raw) ? "'$patient_id_raw'" : "NULL"; 
+    // Handle empty or walk-in patient selection as NULL for walk-in customers
+    $patient_id = (!empty($patient_id_raw) && $patient_id_raw !== 'walkin') ? "'$patient_id_raw'" : "NULL"; 
     
     $staff_id = mysqli_real_escape_string($conn, $_POST['staff_id']);
     $payment_method = mysqli_real_escape_string($conn, $_POST['payment_method']);
@@ -161,8 +161,9 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
                                 <i class="fa-solid fa-user-plus mr-1"></i> Quick Add Patient
                             </button>
                         </div>
-                        <select name="patient_id" id="patient_select" class="searchable-select w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none font-bold">
-                            <option value="">-- Walk-in / No Patient Selected --</option>
+                        <select name="patient_id" id="patient_select" data-placeholder="Search patient name..." class="searchable-select w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none font-bold">
+                            <option value=""></option>
+                            <option value="walkin">-- Walk-in / No Patient Selected --</option>
                             <?php 
                             $p_res = mysqli_query($conn, "SELECT PATIENT_ID, NAME, IC_NUMBER FROM PATIENT ORDER BY NAME ASC");
                             while($p = mysqli_fetch_assoc($p_res)) {
@@ -310,7 +311,14 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
 
     <script>
         $(document).ready(function() {
-            $('.searchable-select').select2({ allowClear: true });
+            $('.searchable-select').each(function() {
+                $(this).select2({
+                    width: '100%',
+                    placeholder: $(this).data('placeholder') || 'Search...',
+                    allowClear: true,
+                    dropdownParent: $(this).closest('form').length ? $(this).closest('form') : $('body')
+                });
+            });
         });
 
         function openPatientModal() {
