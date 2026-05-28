@@ -2,46 +2,82 @@
 session_start();
 include('config.php');
 
-// ==========================================
-// TELEGRAM BOT CONFIGURATION
-// ==========================================
-$bot_token = $_ENV['TELEGRAM_BOT_TOKEN']; // Replace with your BotFather token
+// Import PHPMailer classes into the global namespace
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\SMTP;
+use PHPMailer\PHPMailer\Exception;
+
+// Load PHPMailer files manually (No Composer required!)
+require 'PHPMailer/src/Exception.php';
+require 'PHPMailer/src/PHPMailer.php';
+require 'PHPMailer/src/SMTP.php';
 
 $error = "";
+$success = "";
+$step = isset($_SESSION['step']) ? $_SESSION['step'] : 'credentials';
 
-// 1. Handle Email & Password Submission
+// Helper function to send email via PHPMailer
+function sendSystemEmail($toEmail, $toName, $otp, $purpose) {
+    $mail = new PHPMailer(true);
+    try {
+        // Server settings
+        $mail->isSMTP();
+        $mail->Host       = $_ENV['SMTP_HOST'];
+        $mail->SMTPAuth   = true;
+        $mail->Username   = $_ENV['SMTP_USER'];
+        $mail->Password   = $_ENV['SMTP_PASS'];
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+        $mail->Port       = $_ENV['SMTP_PORT'];
+
+        // Recipients
+        $mail->setFrom($_ENV['SMTP_USER'], 'C-More Clinical Suite');
+        $mail->addAddress($toEmail, $toName);
+
+        // Content
+        $mail->isHTML(true);
+        if($purpose == 'login') {
+            $mail->Subject = 'C-More Clinical Suite - Login Verification';
+            $mail->Body    = "Hello <b>{$toName}</b>,<br><br>Your secure login OTP is: <b style='font-size:20px; color:#0097B2;'>{$otp}</b><br><br>Please do not share this code with anyone.";
+        } else {
+            $mail->Subject = 'C-More Clinical Suite - Password Reset';
+            $mail->Body    = "Hello <b>{$toName}</b>,<br><br>You requested a password reset. Your OTP is: <b style='font-size:20px; color:#0097B2;'>{$otp}</b><br><br>If you did not request this, please ignore this email.";
+        }
+
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        return false; // Email failed
+    }
+}
+
+// ==========================================
+// 1. HANDLE LOGIN SUBMISSION
+// ==========================================
 if(isset($_POST['verify_credentials'])) {
     $email = mysqli_real_escape_string($conn, $_POST['email']);
     $password = $_POST['password']; 
 
-    // Find User by Email (Updated based on your schema)
     $sql = "SELECT * FROM user WHERE EMAIL = '$email'";
     $res = mysqli_query($conn, $sql);
     
     if($row = mysqli_fetch_assoc($res)) {
-        // Checking the password directly against the database
         if($password === $row['PASSWORD']) {
-            
-            // Generate 6-digit OTP
             $otp = rand(100000, 999999);
             
-            // Store temporary session data
             $_SESSION['temp_user_id'] = $row['USER_ID'];
+            $_SESSION['temp_email'] = $row['EMAIL'];
             $_SESSION['temp_name'] = $row['NAME'];
+            $_SESSION['force_pw_change'] = $row['FORCE_PW_CHANGE'];
             $_SESSION['otp'] = $otp;
+            $_SESSION['otp_purpose'] = 'login';
             
-            // Send OTP via Telegram
-            $chat_id = $row['TELEGRAM_CHAT_ID'];
-            if(!empty($chat_id)) {
-                $message = "🔐 *C-More Clinical Suite*\nHello {$row['NAME']},\nYour secure login OTP is: *{$otp}*\n\n_Do not share this code with anyone._";
-                $url = "https://api.telegram.org/bot{$bot_token}/sendMessage?chat_id={$chat_id}&parse_mode=Markdown&text=" . urlencode($message);
-                
-                // Suppress warnings if network fails
-                @file_get_contents($url);
-                
-                $_SESSION['step'] = 'otp'; // Move to OTP step
+            // Send email using the new PHPMailer function
+            if(sendSystemEmail($email, $row['NAME'], $otp, 'login')) {
+                $_SESSION['step'] = 'otp';
+                header("Location: login.php");
+                exit();
             } else {
-                $error = "No Telegram Chat ID linked to this account.";
+                $error = "Failed to send OTP email. Check your SMTP settings in .env.";
             }
         } else {
             $error = "Invalid email or password.";
@@ -51,44 +87,131 @@ if(isset($_POST['verify_credentials'])) {
     }
 }
 
-// 2. Handle OTP Verification Submission
+// ==========================================
+// 2. HANDLE FORGOT PASSWORD SUBMISSION
+// ==========================================
+if(isset($_POST['trigger_forgot_password'])) {
+    $email = mysqli_real_escape_string($conn, $_POST['forgot_email']);
+    
+    $sql = "SELECT * FROM user WHERE EMAIL = '$email'";
+    $res = mysqli_query($conn, $sql);
+    
+    if($row = mysqli_fetch_assoc($res)) {
+        $otp = rand(100000, 999999);
+        
+        $_SESSION['temp_user_id'] = $row['USER_ID'];
+        $_SESSION['temp_email'] = $row['EMAIL'];
+        $_SESSION['temp_name'] = $row['NAME'];
+        $_SESSION['otp'] = $otp;
+        $_SESSION['otp_purpose'] = 'forgot_password';
+        
+        // Send email using the new PHPMailer function
+        sendSystemEmail($email, $row['NAME'], $otp, 'forgot_password');
+        
+        $_SESSION['step'] = 'otp';
+        header("Location: login.php");
+        exit();
+    } else {
+        // Show success anyway to prevent email enumeration attacks
+        $_SESSION['step'] = 'otp'; 
+        header("Location: login.php");
+        exit();
+    }
+}
+
+// ==========================================
+// 3. HANDLE OTP VERIFICATION
+// ==========================================
 if(isset($_POST['verify_otp'])) {
     $entered_otp = $_POST['otp_code'];
     
     if($entered_otp == $_SESSION['otp']) {
-        // Success! Log the user in
-        $_SESSION['USER_ID'] = $_SESSION['temp_user_id'];
-        $_SESSION['NAME'] = $_SESSION['temp_name'];
-        
-        // Clean up temp variables
-        unset($_SESSION['temp_user_id']);
-        unset($_SESSION['temp_name']);
-        unset($_SESSION['otp']);
-        unset($_SESSION['step']);
-        
-        // Redirect to Dashboard
-        header("Location: directory.php");
-        exit();
+        if($_SESSION['otp_purpose'] == 'forgot_password' || $_SESSION['force_pw_change'] == 1) {
+            $_SESSION['step'] = 'change_password';
+            header("Location: login.php");
+            exit();
+        } else {
+            $_SESSION['USER_ID'] = $_SESSION['temp_user_id'];
+            $_SESSION['NAME'] = $_SESSION['temp_name'];
+            
+            unset($_SESSION['temp_user_id']);
+            unset($_SESSION['temp_email']);
+            unset($_SESSION['temp_name']);
+            unset($_SESSION['force_pw_change']);
+            unset($_SESSION['otp']);
+            unset($_SESSION['otp_purpose']);
+            unset($_SESSION['step']);
+            
+            header("Location: directory.php");
+            exit();
+        }
     } else {
         $error = "Incorrect OTP code. Please try again.";
     }
 }
 
-// 3. Handle 'Go Back / Cancel'
-if(isset($_GET['action']) && $_GET['action'] == 'cancel') {
-    session_destroy();
-    header("Location: login.php");
-    exit();
+// ==========================================
+// 4. HANDLE PASSWORD CHANGE SUBMISSION
+// ==========================================
+if(isset($_POST['save_new_password'])) {
+    $new_pw = $_POST['new_password'];
+    $confirm_pw = $_POST['confirm_password'];
+    
+    if($new_pw === $confirm_pw) {
+        if(strlen($new_pw) >= 6) {
+            $uid = $_SESSION['temp_user_id'];
+            $escaped_pw = mysqli_real_escape_string($conn, $new_pw);
+            
+            // Update DB and remove the force change flag
+            $sql = "UPDATE user SET PASSWORD = '$escaped_pw', FORCE_PW_CHANGE = 0 WHERE USER_ID = $uid";
+            if(mysqli_query($conn, $sql)) {
+                $_SESSION['USER_ID'] = $_SESSION['temp_user_id'];
+                $_SESSION['NAME'] = $_SESSION['temp_name'];
+                
+                unset($_SESSION['temp_user_id']);
+                unset($_SESSION['temp_email']);
+                unset($_SESSION['temp_name']);
+                unset($_SESSION['force_pw_change']);
+                unset($_SESSION['otp']);
+                unset($_SESSION['otp_purpose']);
+                unset($_SESSION['step']);
+                
+                header("Location: directory.php");
+                exit();
+            } else {
+                $error = "Database error. Please try again.";
+            }
+        } else {
+            $error = "Password must be at least 6 characters long.";
+        }
+    } else {
+        $error = "Passwords do not match.";
+    }
 }
 
-// Determine which step of the UI to show
+// ==========================================
+// CANCEL / GO BACK ACTIONS
+// ==========================================
+if(isset($_GET['action'])) {
+    if($_GET['action'] == 'cancel') {
+        session_destroy();
+        header("Location: login.php");
+        exit();
+    }
+    if($_GET['action'] == 'forgot') {
+        $_SESSION['step'] = 'forgot_email';
+        header("Location: login.php");
+        exit();
+    }
+}
+
 $step = isset($_SESSION['step']) ? $_SESSION['step'] : 'credentials';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>C-More | Secure Login</title>
+    <title>C-More | Secure Access</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -98,6 +221,7 @@ $step = isset($_SESSION['step']) ? $_SESSION['step'] : 'credentials';
 
     <div class="max-w-4xl w-full bg-white rounded-[3rem] shadow-2xl shadow-slate-200/50 overflow-hidden flex flex-col md:flex-row border border-slate-100">
         
+        <!-- Left Branding Panel -->
         <div class="md:w-1/2 bg-slate-900 p-12 flex flex-col justify-center items-center relative overflow-hidden text-center">
             <div class="absolute top-0 right-0 w-64 h-64 bg-[#0097B2]/20 rounded-full -mr-32 -mt-32 blur-3xl"></div>
             <div class="absolute bottom-0 left-0 w-48 h-48 bg-[#B9D977]/10 rounded-full -ml-24 -mb-24 blur-3xl"></div>
@@ -110,6 +234,7 @@ $step = isset($_SESSION['step']) ? $_SESSION['step'] : 'credentials';
             <p class="text-slate-400 mt-3 text-sm leading-relaxed relative z-10 font-medium">Secure clinic management and optical inventory system.</p>
         </div>
 
+        <!-- Right Form Panel -->
         <div class="md:w-1/2 p-12 flex flex-col justify-center bg-white">
             
             <?php if($error): ?>
@@ -120,6 +245,7 @@ $step = isset($_SESSION['step']) ? $_SESSION['step'] : 'credentials';
             <?php endif; ?>
 
             <?php if($step == 'credentials'): ?>
+                <!-- STATE: STANDARD LOGIN -->
                 <div class="mb-10">
                     <h3 class="text-3xl font-black text-slate-900 tracking-tight">Welcome Back</h3>
                     <p class="text-slate-500 font-medium mt-1">Please enter your credentials to continue.</p>
@@ -140,38 +266,102 @@ $step = isset($_SESSION['step']) ? $_SESSION['step'] : 'credentials';
                                class="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none font-bold text-slate-700 transition">
                     </div>
 
+                    <div class="flex items-center justify-between mt-2">
+                        <a href="login.php?action=forgot" class="text-sm font-bold text-[#0097B2] hover:text-[#007b91] transition">Forgot Password?</a>
+                    </div>
+
                     <button type="submit" name="verify_credentials" class="w-full bg-[#0097B2] text-white py-4 rounded-2xl font-bold shadow-lg shadow-teal-100 hover:scale-105 transition-all mt-4">
                         Login securely <i class="fa-solid fa-arrow-right ml-2"></i>
                     </button>
                 </form>
 
-            <?php elseif($step == 'otp'): ?>
-                <div class="mb-8 text-center">
-                    <div class="w-16 h-16 bg-[#0088cc]/10 text-[#0088cc] rounded-full flex items-center justify-center text-3xl mx-auto mb-4 shadow-inner">
-                        <i class="fa-brands fa-telegram"></i>
+            <?php elseif($step == 'forgot_email'): ?>
+                <!-- STATE: FORGOT PASSWORD REQUEST -->
+                <div class="mb-10">
+                    <h3 class="text-3xl font-black text-slate-900 tracking-tight">Reset Password</h3>
+                    <p class="text-slate-500 font-medium mt-1">Enter your email to receive a verification code.</p>
+                </div>
+
+                <form action="login.php" method="POST" class="space-y-6">
+                    <div class="space-y-2 relative">
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Registered Email</label>
+                        <i class="fa-solid fa-envelope absolute left-5 top-[2.4rem] text-slate-400"></i>
+                        <input type="email" name="forgot_email" required placeholder="staff@cmore.com" 
+                               class="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none font-bold text-slate-700 transition">
                     </div>
-                    <h3 class="text-2xl font-black text-slate-900 tracking-tight">Verification Required</h3>
+
+                    <div class="pt-2 space-y-3">
+                        <button type="submit" name="trigger_forgot_password" class="w-full bg-[#0097B2] text-white py-4 rounded-2xl font-bold shadow-lg shadow-teal-100 hover:scale-105 transition-all">
+                            Send Reset Code <i class="fa-solid fa-paper-plane ml-2"></i>
+                        </button>
+                        <a href="login.php?action=cancel" class="block w-full text-center py-4 text-slate-400 font-bold hover:text-slate-600 transition text-sm">
+                            Back to Login
+                        </a>
+                    </div>
+                </form>
+
+            <?php elseif($step == 'otp'): ?>
+                <!-- STATE: ENTER OTP (Used for both Login & Reset) -->
+                <div class="mb-8 text-center">
+                    <div class="w-16 h-16 bg-[#0097B2]/10 text-[#0097B2] rounded-full flex items-center justify-center text-3xl mx-auto mb-4 shadow-inner">
+                        <i class="fa-solid fa-shield-check"></i>
+                    </div>
+                    <h3 class="text-2xl font-black text-slate-900 tracking-tight">Verification Sent</h3>
                     <p class="text-slate-500 font-medium mt-2 text-sm leading-relaxed">
-                        We've sent a 6-digit code to the Telegram account registered to <span class="font-bold text-slate-800"><?php echo $_SESSION['temp_name']; ?></span>.
+                        We've sent a 6-digit code to <span class="font-bold text-slate-800"><?php echo isset($_SESSION['temp_email']) ? $_SESSION['temp_email'] : 'your email'; ?></span>.
                     </p>
                 </div>
 
                 <form action="login.php" method="POST" class="space-y-6">
                     <div class="space-y-2 text-center">
-                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-400">Enter 6-Digit Code</label>
                         <input type="text" name="otp_code" required maxlength="6" placeholder="000000" autocomplete="off"
                                class="w-full text-center tracking-[0.5em] text-3xl py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none font-black text-slate-800 transition">
                     </div>
 
                     <div class="pt-4 space-y-3">
                         <button type="submit" name="verify_otp" class="w-full bg-[#B9D977] text-slate-900 py-4 rounded-2xl font-black shadow-lg hover:scale-105 transition-all">
-                            Verify & Enter System
+                            Verify Code
                         </button>
                         <a href="login.php?action=cancel" class="block w-full text-center py-4 text-slate-400 font-bold hover:text-slate-600 transition text-sm">
-                            Cancel / Wrong Account?
+                            Cancel
                         </a>
                     </div>
                 </form>
+                
+            <?php elseif($step == 'change_password'): ?>
+                <!-- STATE: FORCE PASSWORD CHANGE OR RESET -->
+                <div class="mb-10">
+                    <h3 class="text-3xl font-black text-slate-900 tracking-tight">Update Password</h3>
+                    <p class="text-slate-500 font-medium mt-1">
+                        <?php echo ($_SESSION['otp_purpose'] == 'forgot_password') ? "Create a new password for your account." : "For security, you must change the default password provided by the administrator."; ?>
+                    </p>
+                </div>
+
+                <form action="login.php" method="POST" class="space-y-6">
+                    <div class="space-y-2 relative">
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">New Password</label>
+                        <i class="fa-solid fa-key absolute left-5 top-[2.4rem] text-slate-400"></i>
+                        <input type="password" name="new_password" required placeholder="Min. 6 characters" minlength="6"
+                               class="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none font-bold text-slate-700 transition">
+                    </div>
+                    
+                    <div class="space-y-2 relative">
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Confirm New Password</label>
+                        <i class="fa-solid fa-check-double absolute left-5 top-[2.4rem] text-slate-400"></i>
+                        <input type="password" name="confirm_password" required placeholder="Type password again" minlength="6"
+                               class="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none font-bold text-slate-700 transition">
+                    </div>
+
+                    <div class="pt-2 space-y-3">
+                        <button type="submit" name="save_new_password" class="w-full bg-[#0097B2] text-white py-4 rounded-2xl font-bold shadow-lg shadow-teal-100 hover:scale-105 transition-all">
+                            Save Password & Login <i class="fa-solid fa-check ml-2"></i>
+                        </button>
+                        <a href="login.php?action=cancel" class="block w-full text-center py-4 text-slate-400 font-bold hover:text-slate-600 transition text-sm">
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+
             <?php endif; ?>
             
             <div class="mt-12 pt-6 border-t border-slate-50 text-center">
