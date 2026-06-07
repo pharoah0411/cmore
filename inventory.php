@@ -27,9 +27,9 @@
                 <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">Product Inventory</h1>
                 <p class="text-slate-500 font-medium mt-1">Monitor stock levels and manage clinical supplies.</p>
             </div>
-            <button class="bg-[#0097B2] text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-teal-100 hover:scale-105 transition-all">
+            <a href="inventory_add.php" class="bg-[#0097B2] text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-teal-100 hover:scale-105 transition-all inline-flex items-center">
                 <i class="fa-solid fa-plus mr-2"></i> Add New Product
-            </button>
+            </a>
         </header>
 
         <div class="mb-8">
@@ -137,7 +137,50 @@
                             </div>
                         </td>
                     </tr>
-                    <tr id="<?php echo $supp_row_id; ?>" class="hidden bg-slate-50/50 border-b border-slate-100"><td colspan="4">...</td></tr>
+                    <tr id="<?php echo $supp_row_id; ?>" class="hidden bg-slate-50/50 border-b border-slate-100">
+                        <td colspan="4">
+                            <div class="p-6">
+                                <div class="grid md:grid-cols-3 gap-6">
+                                    <div>
+                                        <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Product Details</p>
+                                        <p class="text-slate-700 text-sm mb-1"><?php echo !empty($row['DESCRIPTION']) ? nl2br(htmlspecialchars($row['DESCRIPTION'])) : '<span class="text-slate-400 italic">No description available.</span>'; ?></p>
+                                        <p class="text-[11px] font-black uppercase text-slate-400 tracking-widest mt-3 mb-1">Identifiers</p>
+                                        <p class="text-slate-600 text-sm">SKU: <?php echo htmlspecialchars($row['SKU'] ?? '-'); ?></p>
+                                        <p class="text-slate-600 text-sm">Barcode: <?php echo htmlspecialchars($row['BARCODE'] ?? '-'); ?></p>
+                                    </div>
+
+                                    <div>
+                                        <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Supplier</p>
+                                        <?php if(!empty($row['COMPANY_NAME'])): ?>
+                                            <p class="text-slate-800 font-bold"><?php echo htmlspecialchars($row['COMPANY_NAME']); ?></p>
+                                            <p class="text-slate-600 text-sm"><?php echo htmlspecialchars($row['CONTACT_PERSON']); ?> <?php echo !empty($row['PHONE_NUMBER']) ? '• ' . htmlspecialchars($row['PHONE_NUMBER']) : ''; ?></p>
+                                            <p class="text-slate-500 text-sm"><?php echo htmlspecialchars($row['EMAIL']); ?></p>
+                                        <?php else: ?>
+                                            <p class="text-slate-400 italic">No supplier assigned.</p>
+                                        <?php endif; ?>
+                                        <div class="mt-4">
+                                            <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Stock Info</p>
+                                            <p class="text-slate-700 text-sm">Quantity: <span class="font-black"><?php echo $row['STOCK_QUANTITY']; ?></span></p>
+                                            <p class="text-slate-700 text-sm">Reorder Level: <span class="font-black"><?php echo htmlspecialchars($row['REORDER_LEVEL'] ?? '-'); ?></span></p>
+                                            <p class="text-slate-700 text-sm">Expiry: <span class="font-black"><?php echo !empty($row['EXPIRY_DATE']) ? date('M d, Y', strtotime($row['EXPIRY_DATE'])) : '-'; ?></span></p>
+                                        </div>
+                                    </div>
+
+                                    <div class="text-right">
+                                        <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Actions</p>
+                                        <div class="flex items-center justify-end space-x-2 mt-2">
+                                            <a href="inventory_view.php?product_id=<?php echo $row['PRODUCT_ID']; ?>" class="action-btn w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-[#0097B2] hover:text-white transition duration-300 shadow-sm" title="View"><i class="fa-solid fa-eye text-sm"></i></a>
+                                            <a href="inventory_edit.php?product_id=<?php echo $row['PRODUCT_ID']; ?>" class="action-btn w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-[#0097B2] hover:text-white transition duration-300 shadow-sm" title="Edit"><i class="fa-solid fa-pen-to-square text-sm"></i></a>
+                                            <a href="adjust_stock.php?product_id=<?php echo $row['PRODUCT_ID']; ?>" class="action-btn w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-[#0097B2] hover:text-white transition duration-300 shadow-sm" title="Adjust Stock"><i class="fa-solid fa-scale-unbalanced-flip text-sm"></i></a>
+                                            <?php if(!empty($row['SUPPLIER_ID'])): ?>
+                                                <a href="supplier.php?supplier_id=<?php echo $row['SUPPLIER_ID']; ?>" class="action-btn w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-[#0097B2] hover:text-white transition duration-300 shadow-sm" title="Supplier"><i class="fa-solid fa-building text-sm"></i></a>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
                     <?php endwhile; else: ?>
                         <tr><td colspan="4" class="p-12 text-center text-slate-400 font-bold italic">No products found.</td></tr>
                     <?php endif; ?>
