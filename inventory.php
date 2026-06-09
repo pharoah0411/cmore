@@ -10,7 +10,8 @@
     <style> body { font-family: 'Plus Jakarta Sans', sans-serif; } </style>
     <script>
         function toggleSupplier(id, event) {
-            if(event.target.closest('button.action-btn')) return;
+            // Catch any element with .action-btn class
+            if(event.target.closest('.action-btn')) return;
             const el = document.getElementById(id);
             if(el.classList.contains('hidden')) el.classList.remove('hidden');
             else el.classList.add('hidden');
@@ -90,7 +91,6 @@
                             $is_low = ($row['STOCK_QUANTITY'] < 5);
                             $supp_row_id = "supp_" . $row['PRODUCT_ID'];
                             
-                            // NEW: Calculate Expiry Badge logic
                             $expiry_badge = '';
                             if(!empty($row['EXPIRY_DATE'])) {
                                 $exp_date = strtotime($row['EXPIRY_DATE']);
@@ -116,7 +116,8 @@
                                     <p class="font-bold text-slate-800 text-lg leading-tight truncate"><?php echo $row['BRAND_NAME']; ?></p>
                                     <div class="flex items-center">
                                         <span class="inline-block text-[9px] font-black bg-slate-100 text-slate-500 px-2 py-0.5 rounded uppercase tracking-tighter mt-1"><?php echo $row['CATEGORY']; ?></span>
-                                        <?php echo $expiry_badge; ?> </div>
+                                        <?php echo $expiry_badge; ?> 
+                                    </div>
                                 </div>
                             </div>
                         </td>
@@ -133,50 +134,82 @@
                         </td>
                         <td class="p-6">
                             <div class="flex items-center justify-center space-x-2">
-                                <button class="action-btn w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-[#0097B2] hover:text-white transition duration-300 shadow-sm"><i class="fa-solid fa-pen-to-square text-sm"></i></button>
+                                <a href="inventory_edit.php?product_id=<?php echo $row['PRODUCT_ID']; ?>" class="action-btn w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-[#0097B2] hover:text-white transition duration-300 shadow-sm" title="Edit Product">
+                                    <i class="fa-solid fa-pen-to-square text-sm"></i>
+                                </a>
                             </div>
                         </td>
                     </tr>
                     <tr id="<?php echo $supp_row_id; ?>" class="hidden bg-slate-50/50 border-b border-slate-100">
                         <td colspan="4">
-                            <div class="p-6">
-                                <div class="grid md:grid-cols-3 gap-6">
+                            <div class="p-6 px-10">
+                                <div class="grid md:grid-cols-2 gap-10">
+                                    
                                     <div>
-                                        <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Product Details</p>
-                                        <p class="text-slate-700 text-sm mb-1"><?php echo !empty($row['DESCRIPTION']) ? nl2br(htmlspecialchars($row['DESCRIPTION'])) : '<span class="text-slate-400 italic">No description available.</span>'; ?></p>
-                                        <p class="text-[11px] font-black uppercase text-slate-400 tracking-widest mt-3 mb-1">Identifiers</p>
-                                        <p class="text-slate-600 text-sm">SKU: <?php echo htmlspecialchars($row['SKU'] ?? '-'); ?></p>
-                                        <p class="text-slate-600 text-sm">Barcode: <?php echo htmlspecialchars($row['BARCODE'] ?? '-'); ?></p>
-                                    </div>
-
-                                    <div>
-                                        <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Supplier</p>
+                                        <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Supplier Information</p>
                                         <?php if(!empty($row['COMPANY_NAME'])): ?>
-                                            <p class="text-slate-800 font-bold"><?php echo htmlspecialchars($row['COMPANY_NAME']); ?></p>
-                                            <p class="text-slate-600 text-sm"><?php echo htmlspecialchars($row['CONTACT_PERSON']); ?> <?php echo !empty($row['PHONE_NUMBER']) ? '• ' . htmlspecialchars($row['PHONE_NUMBER']) : ''; ?></p>
-                                            <p class="text-slate-500 text-sm"><?php echo htmlspecialchars($row['EMAIL']); ?></p>
+                                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm max-w-sm">
+                                                <div class="flex items-center space-x-3 mb-3 border-b border-slate-50 pb-3">
+                                                    <div class="w-10 h-10 rounded-xl bg-teal-50 text-[#0097B2] flex items-center justify-center shrink-0">
+                                                        <i class="fa-solid fa-building"></i>
+                                                    </div>
+                                                    <p class="text-slate-800 font-bold text-base leading-tight"><?php echo htmlspecialchars($row['COMPANY_NAME']); ?></p>
+                                                </div>
+                                                <div class="space-y-2">
+                                                    <p class="text-slate-600 text-sm flex items-center">
+                                                        <i class="fa-solid fa-user text-slate-400 w-5 mr-1 text-center"></i> 
+                                                        <?php echo htmlspecialchars($row['CONTACT_PERSON']); ?>
+                                                    </p>
+                                                    <?php if(!empty($row['PHONE_NUMBER'])): ?>
+                                                    <p class="text-slate-600 text-sm flex items-center">
+                                                        <i class="fa-solid fa-phone text-slate-400 w-5 mr-1 text-center"></i> 
+                                                        <?php echo htmlspecialchars($row['PHONE_NUMBER']); ?>
+                                                    </p>
+                                                    <?php endif; ?>
+                                                    <?php if(!empty($row['EMAIL'])): ?>
+                                                    <p class="text-slate-600 text-sm flex items-center truncate" title="<?php echo htmlspecialchars($row['EMAIL']); ?>">
+                                                        <i class="fa-solid fa-envelope text-slate-400 w-5 mr-1 text-center"></i> 
+                                                        <?php echo htmlspecialchars($row['EMAIL']); ?>
+                                                    </p>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
                                         <?php else: ?>
-                                            <p class="text-slate-400 italic">No supplier assigned.</p>
+                                            <p class="text-slate-400 italic mb-4 text-sm">No supplier assigned to this product.</p>
                                         <?php endif; ?>
-                                        <div class="mt-4">
-                                            <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Stock Info</p>
-                                            <p class="text-slate-700 text-sm">Quantity: <span class="font-black"><?php echo $row['STOCK_QUANTITY']; ?></span></p>
-                                            <p class="text-slate-700 text-sm">Reorder Level: <span class="font-black"><?php echo htmlspecialchars($row['REORDER_LEVEL'] ?? '-'); ?></span></p>
-                                            <p class="text-slate-700 text-sm">Expiry: <span class="font-black"><?php echo !empty($row['EXPIRY_DATE']) ? date('M d, Y', strtotime($row['EXPIRY_DATE'])) : '-'; ?></span></p>
-                                        </div>
                                     </div>
 
-                                    <div class="text-right">
-                                        <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Actions</p>
-                                        <div class="flex items-center justify-end space-x-2 mt-2">
-                                            <a href="inventory_view.php?product_id=<?php echo $row['PRODUCT_ID']; ?>" class="action-btn w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-[#0097B2] hover:text-white transition duration-300 shadow-sm" title="View"><i class="fa-solid fa-eye text-sm"></i></a>
-                                            <a href="inventory_edit.php?product_id=<?php echo $row['PRODUCT_ID']; ?>" class="action-btn w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-[#0097B2] hover:text-white transition duration-300 shadow-sm" title="Edit"><i class="fa-solid fa-pen-to-square text-sm"></i></a>
-                                            <a href="adjust_stock.php?product_id=<?php echo $row['PRODUCT_ID']; ?>" class="action-btn w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-[#0097B2] hover:text-white transition duration-300 shadow-sm" title="Adjust Stock"><i class="fa-solid fa-scale-unbalanced-flip text-sm"></i></a>
-                                            <?php if(!empty($row['SUPPLIER_ID'])): ?>
-                                                <a href="supplier.php?supplier_id=<?php echo $row['SUPPLIER_ID']; ?>" class="action-btn w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-[#0097B2] hover:text-white transition duration-300 shadow-sm" title="Supplier"><i class="fa-solid fa-building text-sm"></i></a>
-                                            <?php endif; ?>
+                                    <div class="flex flex-col justify-between">
+                                        <div>
+                                            <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Stock Overview</p>
+                                            <div class="space-y-2">
+                                                <div class="flex items-center">
+                                                    <span class="text-slate-500 w-32 text-sm font-semibold">Current Quantity:</span>
+                                                    <span class="text-slate-800 font-black text-lg"><?php echo $row['STOCK_QUANTITY']; ?></span>
+                                                </div>
+                                                <div class="flex items-center">
+                                                    <span class="text-slate-500 w-32 text-sm font-semibold">Expiry Date:</span>
+                                                    <span class="text-slate-800 font-black"><?php echo !empty($row['EXPIRY_DATE']) ? date('M d, Y', strtotime($row['EXPIRY_DATE'])) : '<span class="text-slate-400 font-normal">-</span>'; ?></span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="mt-6">
+                                            <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Actions</p>
+                                            <div class="flex items-center space-x-3">
+                                                <a href="inventory_view.php?product_id=<?php echo $row['PRODUCT_ID']; ?>" class="action-btn px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 flex items-center hover:bg-[#0097B2] hover:border-[#0097B2] hover:text-white transition shadow-sm text-sm font-bold">
+                                                    <i class="fa-solid fa-eye mr-2"></i> View
+                                                </a>
+                                                <a href="inventory_edit.php?product_id=<?php echo $row['PRODUCT_ID']; ?>" class="action-btn px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 flex items-center hover:bg-[#0097B2] hover:border-[#0097B2] hover:text-white transition shadow-sm text-sm font-bold">
+                                                    <i class="fa-solid fa-pen-to-square mr-2"></i> Edit
+                                                </a>
+                                                <a href="adjust_stock.php?product_id=<?php echo $row['PRODUCT_ID']; ?>" class="action-btn px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 flex items-center hover:bg-[#0097B2] hover:border-[#0097B2] hover:text-white transition shadow-sm text-sm font-bold">
+                                                    <i class="fa-solid fa-scale-unbalanced-flip mr-2"></i> Adjust
+                                                </a>
+                                            </div>
                                         </div>
                                     </div>
+                                    
                                 </div>
                             </div>
                         </td>
