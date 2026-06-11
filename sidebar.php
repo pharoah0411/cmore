@@ -19,9 +19,9 @@
                 <div id="live-time" class="text-xl font-black text-white tracking-widest relative z-10 drop-shadow-md">00:00:00</div>
                 <div id="live-date" class="text-[9px] uppercase tracking-[0.2em] font-bold text-[#B9D977] mt-1 relative z-10">LOADING...</div>
             </div>
-        </div>
+        </div>      
     </div>
-    
+                
     <!-- Navigation (ROLE BASED) -->
     <nav class="flex-1 px-6 space-y-1 mt-2 overflow-y-auto overflow-x-hidden custom-scrollbar">
         <?php 
@@ -87,7 +87,203 @@
         </div>
     </div>
 </aside>
+<div id="ai-chat-widget">
+    <div id="ai-chat-window">
+        <div id="ai-chat-header">
+            C More Assistant
+            <button id="ai-chat-close">&times;</button>
+        </div>
+        <div id="ai-chat-messages">
+            <div class="message ai-message">Hello! I can help you find patients, check prescriptions, or search stock. What do you need?</div>
+        </div>
+        <div id="ai-chat-input-area">
+            <input type="text" id="ai-user-input" placeholder="e.g., Find prescription for Farah...">
+            <button id="ai-send-btn">&#10148;</button>
+        </div>
+    </div>
+    <button id="ai-chat-toggle">&#129302;</button> </div>
 
+<style>
+    #ai-chat-widget {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
+    }
+    #ai-chat-toggle {
+        background-color: #4e73df; /* Adjust to match your system's primary color */
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        font-size: 28px;
+        cursor: pointer;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        transition: transform 0.2s;
+    }
+    #ai-chat-toggle:hover {
+        transform: scale(1.1);
+    }
+    #ai-chat-window {
+        display: none;
+        width: 350px;
+        height: 450px;
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        flex-direction: column;
+        overflow: hidden;
+        margin-bottom: 15px;
+        border: 1px solid #e3e6f0;
+    }
+    #ai-chat-header {
+        background-color: #4e73df;
+        color: white;
+        padding: 15px;
+        font-weight: bold;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    #ai-chat-close {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 20px;
+        cursor: pointer;
+    }
+    #ai-chat-messages {
+        flex: 1;
+        padding: 15px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        background-color: #f8f9fc;
+    }
+    .message {
+        padding: 10px 15px;
+        border-radius: 15px;
+        max-width: 80%;
+        font-size: 14px;
+        line-height: 1.4;
+    }
+    .ai-message {
+        background-color: #e3e6f0;
+        color: #333;
+        align-self: flex-start;
+        border-bottom-left-radius: 2px;
+    }
+    .user-message {
+        background-color: #4e73df;
+        color: white;
+        align-self: flex-end;
+        border-bottom-right-radius: 2px;
+    }
+    #ai-chat-input-area {
+        display: flex;
+        padding: 10px;
+        border-top: 1px solid #e3e6f0;
+        background: #fff;
+    }
+    #ai-user-input {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid #d1d3e2;
+        border-radius: 20px;
+        outline: none;
+    }
+    #ai-send-btn {
+        background: none;
+        border: none;
+        color: #4e73df;
+        font-size: 20px;
+        cursor: pointer;
+        padding: 0 10px;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggleBtn = document.getElementById('ai-chat-toggle');
+        const chatWindow = document.getElementById('ai-chat-window');
+        const closeBtn = document.getElementById('ai-chat-close');
+        const sendBtn = document.getElementById('ai-send-btn');
+        const inputField = document.getElementById('ai-user-input');
+        const messagesArea = document.getElementById('ai-chat-messages');
+
+        // Toggle chat window
+        toggleBtn.addEventListener('click', () => {
+            chatWindow.style.display = chatWindow.style.display === 'flex' ? 'none' : 'flex';
+        });
+
+        closeBtn.addEventListener('click', () => {
+            chatWindow.style.display = 'none';
+        });
+
+        // Send message
+        // The core function to send the message
+        function sendMessage() {
+            const text = inputField.value.trim();
+            if (!text) return;
+
+            // 1. Show the user's message
+            appendMessage(text, 'user-message');
+            inputField.value = '';
+
+            // 2. Show a temporary "Thinking..." bubble
+            const typingId = appendMessage("Thinking...", 'ai-message');
+
+            // ---------------------------------------------------------
+            // THIS IS WHERE YOUR NEW CODE GOES
+            // ---------------------------------------------------------
+            // Send to backend via AJAX
+            fetch('ai_assistant_handler.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: text })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById(typingId).remove(); // remove typing indicator
+                appendMessage(data.reply, 'ai-message');
+                
+                // NEW LOGIC: If the AI sent back a URL, automatically redirect the page
+                if (data.redirect_url) {
+                    setTimeout(() => {
+                        window.location.href = data.redirect_url;
+                    }, 1500); // Wait 1.5 seconds so the user can read the message first
+                }
+            })
+            .catch(error => {
+                document.getElementById(typingId).remove();
+                appendMessage("Sorry, I encountered a system error.", 'ai-message');
+                console.error("AI Widget Error:", error);
+            });
+            // ---------------------------------------------------------
+            // END OF YOUR NEW CODE
+            // ---------------------------------------------------------
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        inputField.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        function appendMessage(text, className) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${className}`;
+            // Use HTML to allow links to patient profiles
+            msgDiv.innerHTML = text; 
+            const id = 'msg-' + Date.now();
+            msgDiv.id = id;
+            messagesArea.appendChild(msgDiv);
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+            return id;
+        }
+    });
+</script>
 <!-- SCRIPTS FOR SIDEBAR FUNCTIONALITY -->
 <script>
     // 1. LIVE CLOCK SCRIPT
