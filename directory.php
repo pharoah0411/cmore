@@ -7,6 +7,22 @@ $s_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as t FROM PRO
 
 // Fetch count of expiring/expired products (within 90 days)
 $e_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as t FROM PRODUCT WHERE EXPIRY_DATE IS NOT NULL AND EXPIRY_DATE <= DATE_ADD(CURDATE(), INTERVAL 90 DAY)"))['t'];
+
+// --- NEW: Fetch Today's Appointments ---
+date_default_timezone_set('Asia/Kuala_Lumpur');
+$today = date('Y-m-d');
+
+$today_appt_count_query = "SELECT COUNT(*) as t FROM APPOINTMENT WHERE DATE(APPOINTMENT_DATETIME) = '$today' AND STATUS != 'Cancelled'";
+$today_appt_count = mysqli_fetch_assoc(mysqli_query($conn, $today_appt_count_query))['t'];
+
+$today_appt_sql = "SELECT a.*, p.NAME as PATIENT_NAME, u.NAME as OPTOMETRIST_NAME 
+                   FROM APPOINTMENT a
+                   JOIN PATIENT p ON a.PATIENT_ID = p.PATIENT_ID
+                   LEFT JOIN USER u ON a.STAFF_ID = u.USER_ID
+                   WHERE DATE(a.APPOINTMENT_DATETIME) = '$today'
+                   ORDER BY a.APPOINTMENT_DATETIME ASC";
+$today_appt_res = mysqli_query($conn, $today_appt_sql);
+// ---------------------------------------
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -35,6 +51,45 @@ $e_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as t FROM PRO
             </div>
         </header>
 
+        <div class="bg-[#0097B2] rounded-[2rem] p-8 mb-8 text-white shadow-xl flex flex-col md:flex-row items-center justify-between border border-teal-600">
+            <div class="mb-6 md:mb-0 md:pr-8">
+                <p class="text-xs font-black uppercase tracking-[0.2em] text-teal-100 mb-2">Daily Schedule</p>
+                <h2 class="text-4xl font-extrabold tracking-tight">Today's Appointments</h2>
+                <p class="text-teal-50 font-medium mt-2">You have <span class="font-black text-white text-lg"><?php echo $today_appt_count; ?></span> appointment(s) scheduled for today.</p>
+            </div>
+            
+            <?php if($today_appt_count > 0): ?>
+            <div class="w-full md:w-1/2 bg-white/10 rounded-2xl p-4 max-h-56 overflow-y-auto backdrop-blur-md border border-white/20 shadow-inner">
+                <ul class="space-y-3">
+                    <?php while($appt = mysqli_fetch_assoc($today_appt_res)): 
+                        $time = date('h:i A', strtotime($appt['APPOINTMENT_DATETIME']));
+                    ?>
+                    <li class="flex justify-between items-center bg-white/10 hover:bg-white/20 transition px-5 py-4 rounded-xl border border-white/5">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center font-bold text-lg text-white shadow-sm">
+                                <i class="fa-solid fa-clock"></i>
+                            </div>
+                            <div>
+                                <p class="font-bold text-white text-base leading-tight"><?php echo htmlspecialchars($appt['PATIENT_NAME']); ?></p>
+                                <p class="text-[10px] font-bold text-teal-100 uppercase tracking-widest mt-1">
+                                    <i class="fa-solid fa-user-doctor mr-1"></i> <?php echo htmlspecialchars($appt['OPTOMETRIST_NAME']); ?>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="font-black text-xl text-white bg-white/10 px-3 py-1 rounded-lg"><?php echo $time; ?></span>
+                        </div>
+                    </li>
+                    <?php endwhile; ?>
+                </ul>
+            </div>
+            <?php else: ?>
+            <div class="w-full md:w-auto bg-white/10 px-8 py-6 rounded-2xl backdrop-blur-md border border-white/20 shadow-inner text-center flex items-center space-x-3">
+                <i class="fa-solid fa-mug-hot text-3xl text-teal-100"></i>
+                <p class="font-bold text-teal-50 text-lg">No appointments for today. Enjoy the free time!</p>
+            </div>
+            <?php endif; ?>
+        </div>
         <?php if($s_count > 0): ?>
         <div class="bg-red-50 border border-red-200 rounded-[2rem] p-8 mb-6 flex items-start space-x-6 shadow-sm animate-fade-in">
             <div class="bg-red-100 text-red-500 w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 shadow-inner">

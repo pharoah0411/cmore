@@ -24,13 +24,21 @@ if (isset($_GET['search']) && !empty(trim($_GET['search']))) {
                      OR e.PRESCRIPTION_RESULT LIKE '%$search_query%'";
 }
 
-// Join eye_examination with patient and user to get real names instead of IDs
-$query = "SELECT e.*, p.NAME as PATIENT_NAME, p.IC_NUMBER, u.NAME as OPTOMETRIST_NAME 
-          FROM eye_examination e 
-          LEFT JOIN patient p ON e.PATIENT_ID = p.PATIENT_ID 
+// Ensure ALL patients show up by querying the 'patient' table first.
+// Then LEFT JOIN their most recent eye exam and the optometrist info.
+$query = "SELECT p.PATIENT_ID, p.NAME as PATIENT_NAME, p.IC_NUMBER, 
+                 e.EXAM_ID, e.EXAM_DATE, e.PRESCRIPTION_RESULT, e.VISUAL_ACUITY_RESULTS,
+                 e.RE_SPH, e.RE_CYL, e.RE_AXIS, e.LE_SPH, e.LE_CYL, e.LE_AXIS,
+                 u.NAME as OPTOMETRIST_NAME 
+          FROM patient p 
+          LEFT JOIN (
+              SELECT * FROM eye_examination WHERE EXAM_ID IN (
+                  SELECT MAX(EXAM_ID) FROM eye_examination GROUP BY PATIENT_ID
+              )
+          ) e ON p.PATIENT_ID = e.PATIENT_ID 
           LEFT JOIN user u ON e.OPTOMETRIST_ID = u.USER_ID 
           $where_clause
-          ORDER BY e.EXAM_DATE DESC";
+          ORDER BY p.NAME ASC";
 $result = mysqli_query($conn, $query);
 
 ?>
@@ -86,15 +94,23 @@ $result = mysqli_query($conn, $query);
                     </thead>
                     <tbody class="divide-y divide-slate-100 text-sm font-medium">
                         <?php if (mysqli_num_rows($result) > 0): ?>
-                            <?php while ($row = mysqli_fetch_assoc($result)): ?>
-                                <tr class="hover:bg-slate-50/50 transition group">
-                                    <td class="p-5 text-slate-600 font-bold whitespace-nowrap">
-                                        <?php echo date('d M Y', strtotime($row['EXAM_DATE'])); ?>
+                            <?php while ($row = mysqli_fetch_assoc($result)): 
+                                $has_exam = !empty($row['EXAM_ID']);
+                            ?>
+                                <tr class="hover:bg-slate-50/50 transition group <?php echo !$has_exam ? 'bg-orange-50/20' : ''; ?>">
+                                    
+                                    <td class="p-5 whitespace-nowrap">
+                                        <?php if($has_exam): ?>
+                                            <span class="text-slate-600 font-bold"><?php echo date('d M Y', strtotime($row['EXAM_DATE'])); ?></span>
+                                        <?php else: ?>
+                                            <span class="text-slate-300 font-bold italic">-</span>
+                                        <?php endif; ?>
                                     </td>
+                                    
                                     <td class="p-5">
                                         <div class="flex items-center space-x-3">
-                                            <div class="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center font-bold text-xs">
-                                                <i class="fa-solid fa-user"></i>
+                                            <div class="w-8 h-8 rounded-lg <?php echo $has_exam ? 'bg-slate-100 text-slate-500' : 'bg-orange-100 text-orange-400'; ?> flex items-center justify-center font-bold text-xs">
+                                                <i class="fa-solid <?php echo $has_exam ? 'fa-user' : 'fa-clipboard-question'; ?>"></i>
                                             </div>
                                             <div>
                                                 <p class="font-bold text-slate-800"><?php echo htmlspecialchars($row['PATIENT_NAME'] ?? 'Unknown Patient'); ?></p>
@@ -102,50 +118,75 @@ $result = mysqli_query($conn, $query);
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="p-5 text-slate-500 whitespace-nowrap">
-                                        <i class="fa-solid fa-user-doctor text-[#0097B2] mr-2 opacity-50"></i>
-                                        <?php echo htmlspecialchars($row['OPTOMETRIST_NAME'] ?? 'Unknown'); ?>
-                                    </td>
-                                    <td class="p-5 min-w-[300px]">
-                                        <div class="mb-2 flex items-center justify-between">
-                                            <span class="bg-slate-100 text-slate-600 py-1 px-2 rounded font-bold text-[10px] uppercase tracking-wider border border-slate-200">
-                                                <?php echo htmlspecialchars($row['PRESCRIPTION_RESULT'] ?? 'N/A'); ?>
+                                    
+                                    <td class="p-5 whitespace-nowrap">
+                                        <?php if($has_exam): ?>
+                                            <span class="text-slate-500">
+                                                <i class="fa-solid fa-user-doctor text-[#0097B2] mr-2 opacity-50"></i>
+                                                <?php echo htmlspecialchars($row['OPTOMETRIST_NAME'] ?? 'Unknown'); ?>
                                             </span>
-                                            <span class="text-[10px] font-bold text-slate-400">VA: <?php echo htmlspecialchars($row['VISUAL_ACUITY_RESULTS'] ?? '-'); ?></span>
-                                        </div>
-                                        
-                                        <div class="bg-white border border-slate-100 rounded-lg overflow-hidden">
-                                            <table class="w-full text-center text-[10px] font-mono">
-                                                <thead class="bg-slate-50 text-slate-400 font-bold uppercase">
-                                                    <tr>
-                                                        <th class="py-1 px-2 border-r border-slate-100 font-sans">Eye</th>
-                                                        <th class="py-1 px-2 border-r border-slate-100">SPH</th>
-                                                        <th class="py-1 px-2 border-r border-slate-100">CYL</th>
-                                                        <th class="py-1 px-2">AXIS</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody class="text-slate-600">
-                                                    <tr class="border-b border-slate-50">
-                                                        <td class="py-1 px-2 border-r border-slate-50 font-bold text-[#0097B2] bg-[#0097B2]/5 font-sans">OD</td>
-                                                        <td class="py-1 px-2 border-r border-slate-50"><?php echo htmlspecialchars($row['RE_SPH'] ?: '-'); ?></td>
-                                                        <td class="py-1 px-2 border-r border-slate-50"><?php echo htmlspecialchars($row['RE_CYL'] ?: '-'); ?></td>
-                                                        <td class="py-1 px-2"><?php echo htmlspecialchars($row['RE_AXIS'] ?: '-'); ?></td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td class="py-1 px-2 border-r border-slate-50 font-bold text-[#B9D977] bg-[#B9D977]/10 font-sans">OS</td>
-                                                        <td class="py-1 px-2 border-r border-slate-50"><?php echo htmlspecialchars($row['LE_SPH'] ?: '-'); ?></td>
-                                                        <td class="py-1 px-2 border-r border-slate-50"><?php echo htmlspecialchars($row['LE_CYL'] ?: '-'); ?></td>
-                                                        <td class="py-1 px-2"><?php echo htmlspecialchars($row['LE_AXIS'] ?: '-'); ?></td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
+                                        <?php else: ?>
+                                            <span class="text-slate-300 italic">-</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    
+                                    <td class="p-5 min-w-[300px]">
+                                        <?php if($has_exam): ?>
+                                            <div class="mb-2 flex items-center justify-between">
+                                                <span class="bg-slate-100 text-slate-600 py-1 px-2 rounded font-bold text-[10px] uppercase tracking-wider border border-slate-200">
+                                                    <?php echo htmlspecialchars($row['PRESCRIPTION_RESULT'] ?? 'N/A'); ?>
+                                                </span>
+                                                <span class="text-[10px] font-bold text-slate-400">VA: <?php echo htmlspecialchars($row['VISUAL_ACUITY_RESULTS'] ?? '-'); ?></span>
+                                            </div>
+                                            
+                                            <div class="bg-white border border-slate-100 rounded-lg overflow-hidden">
+                                                <table class="w-full text-center text-[10px] font-mono">
+                                                    <thead class="bg-slate-50 text-slate-400 font-bold uppercase">
+                                                        <tr>
+                                                            <th class="py-1 px-2 border-r border-slate-100 font-sans">Eye</th>
+                                                            <th class="py-1 px-2 border-r border-slate-100">SPH</th>
+                                                            <th class="py-1 px-2 border-r border-slate-100">CYL</th>
+                                                            <th class="py-1 px-2">AXIS</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="text-slate-600">
+                                                        <tr class="border-b border-slate-50">
+                                                            <td class="py-1 px-2 border-r border-slate-50 font-bold text-[#0097B2] bg-[#0097B2]/5 font-sans">OD</td>
+                                                            <td class="py-1 px-2 border-r border-slate-50"><?php echo htmlspecialchars($row['RE_SPH'] ?: '-'); ?></td>
+                                                            <td class="py-1 px-2 border-r border-slate-50"><?php echo htmlspecialchars($row['RE_CYL'] ?: '-'); ?></td>
+                                                            <td class="py-1 px-2"><?php echo htmlspecialchars($row['RE_AXIS'] ?: '-'); ?></td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td class="py-1 px-2 border-r border-slate-50 font-bold text-[#B9D977] bg-[#B9D977]/10 font-sans">OS</td>
+                                                            <td class="py-1 px-2 border-r border-slate-50"><?php echo htmlspecialchars($row['LE_SPH'] ?: '-'); ?></td>
+                                                            <td class="py-1 px-2 border-r border-slate-50"><?php echo htmlspecialchars($row['LE_CYL'] ?: '-'); ?></td>
+                                                            <td class="py-1 px-2"><?php echo htmlspecialchars($row['LE_AXIS'] ?: '-'); ?></td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        <?php else: ?>
+                                            <div class="flex items-center">
+                                                <span class="inline-block px-3 py-1.5 bg-orange-100 text-orange-600 rounded-lg text-[10px] font-black uppercase tracking-widest border border-orange-200">
+                                                    <i class="fa-solid fa-triangle-exclamation mr-1"></i> No Record Yet
+                                                </span>
+                                            </div>
+                                        <?php endif; ?>
+                                    </td>
+                                    
+                                    <td class="p-5 text-right whitespace-nowrap align-middle">
+                                        <div class="flex flex-col space-y-2 items-end">
+                                            <?php if($has_exam): ?>
+                                                <a href="exam_view.php?id=<?php echo $row['EXAM_ID']; ?>" class="px-4 py-2 bg-slate-50 text-[#0097B2] font-bold rounded-lg hover:bg-[#0097B2] hover:text-white transition text-xs border border-slate-200 hover:border-[#0097B2] text-center w-28">
+                                                    View Details
+                                                </a>
+                                            <?php endif; ?>
+                                            <a href="exam_add.php?patient_id=<?php echo $row['PATIENT_ID']; ?>" class="px-4 py-2 <?php echo $has_exam ? 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-100' : 'bg-[#0097B2] text-white shadow-md hover:bg-teal-600 border border-transparent'; ?> font-bold rounded-lg transition text-xs text-center w-28">
+                                                <i class="fa-solid fa-plus mr-1"></i> Add Exam
+                                            </a>
                                         </div>
                                     </td>
-                                    <td class="p-5 text-right whitespace-nowrap align-top pt-8">
-                                        <a href="exam_view.php?id=<?php echo $row['EXAM_ID']; ?>" class="px-3 py-2 bg-slate-50 text-[#0097B2] font-bold rounded-lg hover:bg-[#0097B2] hover:text-white transition text-xs border border-slate-200 hover:border-[#0097B2] inline-block">
-                                            View Details
-                                        </a>
-                                    </td>
+
                                 </tr>
                             <?php endwhile; ?>
                         <?php else: ?>
@@ -154,7 +195,7 @@ $result = mysqli_query($conn, $query);
                                     <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl text-slate-300">
                                         <i class="fa-solid fa-folder-open"></i>
                                     </div>
-                                    <?php echo !empty($search_query) ? 'No records matched your search.' : 'No clinical exams found. Click "New Exam" to start.'; ?>
+                                    <?php echo !empty($search_query) ? 'No records matched your search.' : 'No patients found in the system.'; ?>
                                 </td>
                             </tr>
                         <?php endif; ?>

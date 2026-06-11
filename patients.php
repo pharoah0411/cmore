@@ -1,4 +1,37 @@
-<?php include('config.php'); ?>
+<?php 
+include('config.php'); 
+
+// Function to extract Age and DOB from Malaysian IC
+function parse_malaysian_ic($ic) {
+    if (empty($ic)) return ['age' => 'N/A', 'dob' => 'N/A'];
+    
+    // Remove any dashes or non-numeric characters
+    $clean_ic = preg_replace('/[^0-9]/', '', $ic);
+    if (strlen($clean_ic) != 12) return ['age' => 'N/A', 'dob' => 'N/A'];
+    
+    $yy = substr($clean_ic, 0, 2);
+    $mm = substr($clean_ic, 2, 2);
+    $dd = substr($clean_ic, 4, 2);
+    
+    // Determine the century (Assuming current year is 2026, anything > 26 is 19XX)
+    $current_yy = (int)date('y');
+    $year = ((int)$yy > $current_yy) ? "19$yy" : "20$yy";
+    
+    // Check if the extracted date is valid
+    if (checkdate((int)$mm, (int)$dd, (int)$year)) {
+        $dob_date = new DateTime("$year-$mm-$dd");
+        $now = new DateTime();
+        $age = $now->diff($dob_date)->y;
+        
+        return [
+            'age' => $age . ' Yrs',
+            'dob' => $dob_date->format('d M Y')
+        ];
+    }
+    
+    return ['age' => 'N/A', 'dob' => 'N/A'];
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,7 +42,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style> 
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
-        /* Large font for quick clinical reading */
         .prescription-chip { font-family: 'monospace'; font-size: 14px; font-weight: 800; }
     </style>
 </head>
@@ -41,10 +73,11 @@
             <table class="w-full text-left table-fixed">
                 <thead class="bg-slate-50 border-b border-slate-100">
                     <tr>
-                        <th class="w-[28%] p-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Patient & IC</th>
-                        <th class="w-[22%] p-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Contact & Relation</th>
-                        <th class="w-[35%] p-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Latest Prescription (RE/LE)</th>
-                        <th class="w-[15%] p-5 text-center text-[10px] font-black uppercase tracking-widest text-slate-400">Actions</th>
+                        <th class="w-[24%] p-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Patient & IC</th>
+                        <th class="w-[16%] p-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Age & DOB</th>
+                        <th class="w-[20%] p-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Contact & Relation</th>
+                        <th class="w-[30%] p-5 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Latest Prescription (RE/LE)</th>
+                        <th class="w-[10%] p-5 text-center text-[10px] font-black uppercase tracking-widest text-slate-400">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-50">
@@ -52,10 +85,10 @@
                     $search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['search']) : '';
                     
                     $sql = "SELECT p.*, e.RE_SPH, e.RE_CYL, e.RE_AXIS, e.LE_SPH, e.LE_CYL, e.LE_AXIS 
-                            FROM PATIENT p
+                            FROM patient p
                             LEFT JOIN (
-                                SELECT * FROM EYE_EXAMINATION WHERE EXAM_ID IN (
-                                    SELECT MAX(EXAM_ID) FROM EYE_EXAMINATION GROUP BY PATIENT_ID
+                                SELECT * FROM eye_examination WHERE EXAM_ID IN (
+                                    SELECT MAX(EXAM_ID) FROM eye_examination GROUP BY PATIENT_ID
                                 )
                             ) e ON p.PATIENT_ID = e.PATIENT_ID";
                     
@@ -70,27 +103,42 @@
                     
                     if(mysqli_num_rows($res) > 0):
                         while($row = mysqli_fetch_assoc($res)): 
+                            // Extract Age and DOB for each row
+                            $ic_info = parse_malaysian_ic($row['IC_NUMBER']);
                     ?>
-                    <tr class="hover:bg-slate-50/80 transition-colors group">
+                    <tr class="hover:bg-slate-50/80 transition-colors group cursor-pointer" onclick="window.location.href='patient_details.php?id=<?php echo $row['PATIENT_ID']; ?>'">
                         <td class="p-5">
                             <div class="flex items-center space-x-3">
                                 <div class="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center text-[#0097B2] shrink-0">
                                     <i class="fa-solid fa-user-check text-lg"></i>
                                 </div>
                                 <div class="truncate">
-                                    <p class="font-bold text-slate-800 text-md leading-tight truncate"><?php echo $row['NAME']; ?></p>
+                                    <p class="font-bold text-slate-800 text-md leading-tight truncate"><?php echo htmlspecialchars($row['NAME']); ?></p>
                                     <?php if(!empty($row['IC_NUMBER'])): ?>
-                                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-tighter mt-0.5"><?php echo $row['IC_NUMBER']; ?></p>
+                                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-tighter mt-0.5"><?php echo htmlspecialchars($row['IC_NUMBER']); ?></p>
                                     <?php endif; ?>
                                 </div>
                             </div>
                         </td>
                         
+                        <td class="p-5 text-center">
+                            <div class="inline-flex flex-col items-center">
+                                <span class="text-sm font-bold <?php echo ($ic_info['age'] == 'N/A') ? 'text-slate-300' : 'text-slate-700'; ?>">
+                                    <?php echo $ic_info['age']; ?>
+                                </span>
+                                <?php if($ic_info['dob'] != 'N/A'): ?>
+                                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-tighter mt-0.5">
+                                        <?php echo $ic_info['dob']; ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+                        </td>
+
                         <td class="p-5">
                             <div class="space-y-0">
-                                <p class="text-sm font-bold text-slate-700"><?php echo !empty($row['PHONE_NUMBER']) ? $row['PHONE_NUMBER'] : '<span class="text-slate-300 font-normal">No Phone</span>'; ?></p>
+                                <p class="text-sm font-bold text-slate-700"><?php echo !empty($row['PHONE_NUMBER']) ? htmlspecialchars($row['PHONE_NUMBER']) : '<span class="text-slate-300 font-normal">No Phone</span>'; ?></p>
                                 <p class="text-[10px] font-bold text-slate-400 uppercase truncate">
-                                    <i class="fa-solid fa-people-arrows mr-1 opacity-40"></i><?php echo !empty($row['CONNECTION_RELATIONSHIP']) ? $row['CONNECTION_RELATIONSHIP'] : 'None'; ?>
+                                    <i class="fa-solid fa-people-arrows mr-1 opacity-40"></i><?php echo !empty($row['CONNECTION_RELATIONSHIP']) ? htmlspecialchars($row['CONNECTION_RELATIONSHIP']) : 'None'; ?>
                                 </p>
                             </div>
                         </td>
@@ -118,17 +166,17 @@
 
                         <td class="p-5 text-center">
                             <div class="flex items-center justify-center space-x-1.5">
-                                <a href="patient_details.php?id=<?php echo $row['PATIENT_ID']; ?>" class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-600 hover:text-white transition shadow-sm">
+                                <a href="patient_details.php?id=<?php echo $row['PATIENT_ID']; ?>" onclick="event.stopPropagation();" class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-600 hover:text-white transition shadow-sm">
                                     <i class="fa-solid fa-eye text-xs"></i>
                                 </a>
-                                <a href="patient_edit.php?id=<?php echo $row['PATIENT_ID']; ?>" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-[#0097B2] hover:text-white transition">
+                                <a href="patient_edit.php?id=<?php echo $row['PATIENT_ID']; ?>" onclick="event.stopPropagation();" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-[#0097B2] hover:text-white transition">
                                     <i class="fa-solid fa-pen-to-square text-xs"></i>
                                 </a>
                             </div>
                         </td>
                     </tr>
                     <?php endwhile; else: ?>
-                    <tr><td colspan="4" class="p-20 text-center italic text-slate-400">No records found.</td></tr>
+                    <tr><td colspan="5" class="p-20 text-center italic text-slate-400">No records found.</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>
