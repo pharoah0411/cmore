@@ -9,7 +9,7 @@
         </div>
         <div class="mt-4 flex items-center space-x-2">
             <span class="w-2 h-2 rounded-full bg-[#B9D977] animate-pulse shadow-[0_0_8px_#B9D977]"></span>
-            <p class="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-500">Clinical Suite v1.0</p>
+            <p class="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-500">Suite v1.0</p>
         </div>
 
         <!-- LIVE CLOCK WIDGET -->

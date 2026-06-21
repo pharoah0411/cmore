@@ -90,6 +90,7 @@ $today_appt_res = mysqli_query($conn, $today_appt_sql);
             </div>
             <?php endif; ?>
         </div>
+        
         <?php if($s_count > 0): ?>
         <div class="bg-red-50 border border-red-200 rounded-[2rem] p-8 mb-6 flex items-start space-x-6 shadow-sm animate-fade-in">
             <div class="bg-red-100 text-red-500 w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 shadow-inner">
@@ -155,6 +156,7 @@ $today_appt_res = mysqli_query($conn, $today_appt_sql);
         </div>
         <?php endif; ?>
 
+        
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
             <a href="patients.php" class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 relative overflow-hidden group hover:border-[#0097B2]/40 transition-all">
                 <div class="flex justify-between items-start mb-6">
@@ -192,7 +194,8 @@ $today_appt_res = mysqli_query($conn, $today_appt_sql);
                     <div class="w-10 h-10 bg-slate-900 text-[#B9D977] rounded-xl flex items-center justify-center shadow-lg"><i class="fa-solid fa-plus text-lg"></i></div>
                     <h2 class="text-xl font-bold text-slate-800 tracking-tight">Quick Management</h2>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <!-- UPDATED GRID: Changed to 4 columns to fit the new WhatsApp Button -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <a href="patient_add.php" class="flex flex-col items-center justify-center p-6 bg-slate-50 border border-slate-100 rounded-[2rem] hover:bg-white hover:border-[#0097B2] hover:shadow-lg transition group">
                         <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-[#0097B2] mb-3 group-hover:scale-110 transition"><i class="fa-solid fa-user-plus text-xl"></i></div>
                         <span class="text-xs font-bold text-slate-600 group-hover:text-[#0097B2]">Add Patient</span>
@@ -204,6 +207,11 @@ $today_appt_res = mysqli_query($conn, $today_appt_sql);
                     <a href="inventory.php" class="flex flex-col items-center justify-center p-6 bg-slate-50 border border-slate-100 rounded-[2rem] hover:bg-white hover:border-[#0097B2] hover:shadow-lg transition group">
                         <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-[#0097B2] mb-3 group-hover:scale-110 transition"><i class="fa-solid fa-box-open text-xl"></i></div>
                         <span class="text-xs font-bold text-slate-600 group-hover:text-[#0097B2]">Add Stock</span>
+                    </a>
+                    <!-- NEW WHATSAPP MESSAGING BUTTON -->
+                    <a href="whatsapp_messages.php" class="flex flex-col items-center justify-center p-6 bg-slate-50 border border-slate-100 rounded-[2rem] hover:bg-white hover:border-green-500 hover:shadow-lg transition group">
+                        <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-green-500 mb-3 group-hover:scale-110 transition"><i class="fa-brands fa-whatsapp text-xl"></i></div>
+                        <span class="text-xs font-bold text-slate-600 group-hover:text-green-500">Messages</span>
                     </a>
                 </div>
             </section>
@@ -237,6 +245,7 @@ $today_appt_res = mysqli_query($conn, $today_appt_sql);
                         <i class="fa-solid fa-chevron-right text-[10px] text-slate-600 group-hover:text-slate-900"></i>
                     </a>
                 </div>
+                
             </section>
 
         </div>
