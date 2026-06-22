@@ -1,9 +1,20 @@
 <?php include('config.php');
-include 'check_expiry.php'; ?>
+include 'check_expiry.php';
+
+// config.php normally starts the session; safety net + CSRF token for the delete action.
+if (session_status() === PHP_SESSION_NONE) session_start();
+if (empty($_SESSION['csrf_token'])) $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+$csrf = $_SESSION['csrf_token'];
+
+// Pull and clear any one-time flash message (set by inventory_delete.php).
+$flash = $_SESSION['flash'] ?? null;
+unset($_SESSION['flash']);
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>C-More | Inventory</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -17,6 +28,22 @@ include 'check_expiry.php'; ?>
             if(el.classList.contains('hidden')) el.classList.remove('hidden');
             else el.classList.add('hidden');
         }
+
+        // ---- Delete confirmation modal ----
+        function confirmDelete(id, name) {
+            document.getElementById('deleteProductId').value = id;
+            document.getElementById('deleteProductName').textContent = name;
+            document.getElementById('deleteModal').classList.remove('hidden');
+            document.getElementById('deleteModal').classList.add('flex');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeDeleteModal() {
+            const m = document.getElementById('deleteModal');
+            m.classList.add('hidden');
+            m.classList.remove('flex');
+            document.body.style.overflow = '';
+        }
+        document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeDeleteModal(); });
     </script>
 </head>
 <body class="bg-[#f8fafc] flex min-h-screen text-slate-900">
@@ -33,6 +60,21 @@ include 'check_expiry.php'; ?>
                 <i class="fa-solid fa-plus mr-2"></i> Add New Product
             </a>
         </header>
+
+        <?php if ($flash): ?>
+        <div id="flashBanner" class="mb-6 flex items-center justify-between gap-4 p-5 rounded-2xl border shadow-sm
+            <?php echo $flash['type'] === 'success'
+                ? 'bg-teal-50 border-teal-200 text-teal-800'
+                : 'bg-red-50 border-red-200 text-red-800'; ?>">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid <?php echo $flash['type'] === 'success' ? 'fa-circle-check text-[#0097B2]' : 'fa-circle-exclamation text-red-500'; ?> text-xl"></i>
+                <span class="font-bold"><?php echo htmlspecialchars($flash['msg']); ?></span>
+            </div>
+            <button type="button" onclick="document.getElementById('flashBanner').remove()" class="text-slate-400 hover:text-slate-600 transition shrink-0">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <?php endif; ?>
 
         <div class="mb-8">
             <form action="" method="GET" class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 max-w-4xl">
@@ -110,6 +152,8 @@ include 'check_expiry.php'; ?>
                         while($row = mysqli_fetch_assoc($res)):
                             $is_low = ($row['STOCK_QUANTITY'] < 5);
                             $supp_row_id = "supp_" . $row['PRODUCT_ID'];
+                            // JS-safe, HTML-attribute-safe version of the brand name for the delete modal.
+                            $js_name = htmlspecialchars(json_encode($row['BRAND_NAME']), ENT_QUOTES);
                             
                             $expiry_badge = '';
                             if(!empty($row['EXPIRY_DATE'])) {
@@ -157,6 +201,9 @@ include 'check_expiry.php'; ?>
                                 <a href="inventory_edit.php?product_id=<?php echo $row['PRODUCT_ID']; ?>" class="action-btn w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-[#0097B2] hover:text-white transition duration-300 shadow-sm" title="Edit Product">
                                     <i class="fa-solid fa-pen-to-square text-sm"></i>
                                 </a>
+                                <button type="button" onclick="confirmDelete(<?php echo $row['PRODUCT_ID']; ?>, <?php echo $js_name; ?>)" class="action-btn w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-red-500 hover:text-white transition duration-300 shadow-sm" title="Delete Product">
+                                    <i class="fa-solid fa-trash text-sm"></i>
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -226,6 +273,9 @@ include 'check_expiry.php'; ?>
                                                 <a href="adjust_stock.php?product_id=<?php echo $row['PRODUCT_ID']; ?>" class="action-btn px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 flex items-center hover:bg-[#0097B2] hover:border-[#0097B2] hover:text-white transition shadow-sm text-sm font-bold">
                                                     <i class="fa-solid fa-scale-unbalanced-flip mr-2"></i> Adjust
                                                 </a>
+                                                <button type="button" onclick="confirmDelete(<?php echo $row['PRODUCT_ID']; ?>, <?php echo $js_name; ?>)" class="action-btn px-4 py-2 rounded-xl bg-white border border-red-200 text-red-500 flex items-center hover:bg-red-500 hover:border-red-500 hover:text-white transition shadow-sm text-sm font-bold">
+                                                    <i class="fa-solid fa-trash mr-2"></i> Delete
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -241,5 +291,32 @@ include 'check_expiry.php'; ?>
             </table>
         </div>
     </main>
+
+    <!-- ================= DELETE CONFIRMATION MODAL ================= -->
+    <div id="deleteModal" class="hidden fixed inset-0 z-50 items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4"
+         onclick="if(event.target === this) closeDeleteModal()">
+        <div class="bg-white rounded-[2rem] shadow-2xl max-w-md w-full p-8">
+            <div class="w-16 h-16 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center mb-6 mx-auto">
+                <i class="fa-solid fa-trash-can text-2xl"></i>
+            </div>
+            <h3 class="text-xl font-extrabold text-slate-900 text-center tracking-tight mb-2">Delete this product?</h3>
+            <p class="text-slate-500 text-center font-medium">You're about to permanently delete</p>
+            <p id="deleteProductName" class="text-slate-900 font-bold text-center text-lg mt-1 mb-5 break-words">—</p>
+            <p class="text-xs text-slate-400 text-center mb-8 bg-slate-50 rounded-xl py-3 px-4">
+                <i class="fa-solid fa-circle-info mr-1"></i> This can't be undone. Products linked to sales history can't be deleted.
+            </p>
+            <form method="POST" action="inventory_delete.php" class="flex gap-3">
+                <input type="hidden" name="csrf_token" value="<?php echo $csrf; ?>">
+                <input type="hidden" name="product_id" id="deleteProductId" value="">
+                <input type="hidden" name="return_to" value="<?php echo htmlspecialchars($_SERVER['REQUEST_URI'], ENT_QUOTES); ?>">
+                <button type="button" onclick="closeDeleteModal()" class="flex-1 py-3 rounded-2xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50 transition">
+                    Cancel
+                </button>
+                <button type="submit" class="flex-1 py-3 rounded-2xl bg-red-500 text-white font-bold hover:bg-red-600 transition shadow-lg shadow-red-100">
+                    <i class="fa-solid fa-trash mr-2"></i> Delete
+                </button>
+            </form>
+        </div>
+    </div>
 </body>
 </html>

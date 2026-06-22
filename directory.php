@@ -23,12 +23,16 @@ $today_appt_sql = "SELECT a.*, p.NAME as PATIENT_NAME, u.NAME as OPTOMETRIST_NAM
                    WHERE DATE(a.APPOINTMENT_DATETIME) = '$today'
                    ORDER BY a.APPOINTMENT_DATETIME ASC";
 $today_appt_res = mysqli_query($conn, $today_appt_sql);
+
+// Total number of things that need staff attention right now (used for the summary line)
+$attention_total = $s_count + $e_count;
 // ---------------------------------------
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>C-More | Management Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -39,18 +43,33 @@ $today_appt_res = mysqli_query($conn, $today_appt_sql);
     <?php include('sidebar.php'); ?>
     
     <main class="flex-1 ml-72 p-12">
-        <header class="flex justify-between items-center mb-12">
+        <header class="flex justify-between items-center mb-8">
             <div>
                 <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">System Overview</h1>
                 <p class="text-slate-500 font-medium mt-1">Operational performance for <?php echo date('F d, Y'); ?></p>
             </div>
             <div class="flex space-x-3">
-                <div class="bg-white p-2 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-3 px-4">
+                <div class="bg-white p-2 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-3 px-4" title="Connected to <?php echo $db; ?>">
                     <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                    <span class="text-xs font-black text-slate-600 uppercase tracking-widest">Server Live: <?php echo $db; ?></span>
+                    <span class="text-xs font-black text-slate-600 uppercase tracking-widest">System Online</span>
                 </div>
             </div>
         </header>
+
+        <!-- Plain-language "what's happening" line so the whole page has a one-sentence summary -->
+        <div class="mb-10 flex flex-wrap items-center gap-x-2 gap-y-1 text-slate-500 font-medium">
+            <i class="fa-solid fa-circle-info text-[#0097B2]"></i>
+            <span>Today you have</span>
+            <span class="font-extrabold text-slate-800"><?php echo $today_appt_count; ?> appointment<?php echo $today_appt_count == 1 ? '' : 's'; ?></span>
+            <?php if($attention_total > 0): ?>
+                <span>and</span>
+                <span class="font-extrabold text-red-600"><?php echo $attention_total; ?> inventory item<?php echo $attention_total == 1 ? '' : 's'; ?></span>
+                <span>that need attention.</span>
+            <?php else: ?>
+                <span>and</span>
+                <span class="font-extrabold text-[#0097B2]">no inventory issues.</span>
+            <?php endif; ?>
+        </div>
 
         <div class="bg-[#0097B2] rounded-[2rem] p-8 mb-8 text-white shadow-xl flex flex-col md:flex-row items-center justify-between border border-teal-600">
             <div class="mb-6 md:mb-0 md:pr-8">
@@ -157,45 +176,62 @@ $today_appt_res = mysqli_query($conn, $today_appt_sql);
         </div>
         <?php endif; ?>
 
-        
+        <!-- ================= KEY NUMBERS: each card now explains what it means + what to do ================= -->
+        <h3 class="text-sm font-black uppercase tracking-[0.2em] text-slate-400 mb-6 ml-2">At a Glance</h3>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-            <a href="patients.php" class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 relative overflow-hidden group hover:border-[#0097B2]/40 transition-all">
-                <div class="flex justify-between items-start mb-6">
-                    <div class="flex items-center space-x-4">
-                        <div class="w-16 h-16 bg-teal-50 rounded-2xl flex items-center justify-center text-[#0097B2] shadow-sm group-hover:bg-[#0097B2] group-hover:text-white transition-colors">
-                            <i class="fa-solid fa-user-check text-2xl"></i>
-                        </div>
-                    </div>
+
+            <a href="patients.php" class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 group hover:border-[#0097B2]/40 transition-all flex flex-col">
+                <div class="w-16 h-16 bg-teal-50 rounded-2xl flex items-center justify-center text-[#0097B2] mb-6 shadow-sm group-hover:bg-[#0097B2] group-hover:text-white transition-colors">
+                    <i class="fa-solid fa-user-check text-2xl"></i>
                 </div>
                 <h3 class="text-slate-400 text-xs font-black uppercase tracking-[0.15em]">Registered Patients</h3>
-                <p class="text-6xl font-black text-slate-900 mt-2"><?php echo $p_count; ?></p>
+                <p class="text-6xl font-black text-slate-900 mt-2 leading-none"><?php echo $p_count; ?></p>
+                <p class="text-sm text-slate-400 font-medium mt-3">Total patient records on file</p>
+                <div class="mt-6 flex items-center text-[10px] font-black uppercase tracking-widest text-[#0097B2] group-hover:translate-x-2 transition-transform">
+                    View directory <i class="fa-solid fa-arrow-right ml-2"></i>
+                </div>
             </a>
 
-            <a href="appointment.php" class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 group hover:border-[#0097B2]/40 transition-all">
-                <div class="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600 mb-6 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+            <a href="appointment.php" class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 group hover:border-[#0097B2]/40 transition-all flex flex-col">
+                <div class="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600 mb-6 shadow-sm group-hover:bg-purple-600 group-hover:text-white transition-colors">
                     <i class="fa-solid fa-calendar-check text-2xl"></i>
                 </div>
-                <h3 class="text-slate-400 text-xs font-black uppercase tracking-[0.15em]">Pending Sessions</h3>
-                <p class="text-6xl font-black text-slate-900 mt-2"><?php echo $a_count; ?></p>
+                <h3 class="text-slate-400 text-xs font-black uppercase tracking-[0.15em]">Open Appointments</h3>
+                <p class="text-6xl font-black text-slate-900 mt-2 leading-none"><?php echo $a_count; ?></p>
+                <p class="text-sm text-slate-400 font-medium mt-3">Booked but not yet completed</p>
+                <div class="mt-6 flex items-center text-[10px] font-black uppercase tracking-widest text-purple-600 group-hover:translate-x-2 transition-transform">
+                    Manage schedule <i class="fa-solid fa-arrow-right ml-2"></i>
+                </div>
             </a>
 
-            <a href="inventory.php" class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 group hover:border-[#0097B2]/40 transition-all">
-                <div class="w-16 h-16 <?php echo ($s_count > 0 || $e_count > 0) ? 'bg-red-50 text-red-500 group-hover:bg-red-500' : 'bg-slate-50 text-slate-400 group-hover:bg-slate-400'; ?> rounded-2xl flex items-center justify-center mb-6 group-hover:text-white transition-colors">
+            <a href="inventory.php" class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 group transition-all flex flex-col <?php echo $attention_total > 0 ? 'hover:border-red-300' : 'hover:border-[#0097B2]/40'; ?>">
+                <div class="w-16 h-16 <?php echo $attention_total > 0 ? 'bg-red-50 text-red-500 group-hover:bg-red-500' : 'bg-slate-50 text-slate-400 group-hover:bg-slate-400'; ?> rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:text-white transition-colors">
                     <i class="fa-solid fa-boxes-stacked text-2xl"></i>
                 </div>
-                <h3 class="text-slate-400 text-xs font-black uppercase tracking-[0.15em]">Inventory Alerts</h3>
-                <p class="text-6xl font-black <?php echo ($s_count > 0 || $e_count > 0) ? 'text-red-600' : 'text-slate-900'; ?> mt-2"><?php echo ($s_count + $e_count); ?></p>
+                <h3 class="text-slate-400 text-xs font-black uppercase tracking-[0.15em]">Inventory Needing Attention</h3>
+                <p class="text-6xl font-black <?php echo $attention_total > 0 ? 'text-red-600' : 'text-slate-900'; ?> mt-2 leading-none"><?php echo $attention_total; ?></p>
+                <p class="text-sm font-medium mt-3 <?php echo $attention_total > 0 ? 'text-red-500' : 'text-slate-400'; ?>">
+                    <?php if($attention_total > 0): ?>
+                        <span class="font-bold"><?php echo $s_count; ?></span> low stock &middot; <span class="font-bold"><?php echo $e_count; ?></span> expiring soon
+                    <?php else: ?>
+                        Stock levels are healthy
+                    <?php endif; ?>
+                </p>
+                <div class="mt-6 flex items-center text-[10px] font-black uppercase tracking-widest <?php echo $attention_total > 0 ? 'text-red-500' : 'text-[#0097B2]'; ?> group-hover:translate-x-2 transition-transform">
+                    Review inventory <i class="fa-solid fa-arrow-right ml-2"></i>
+                </div>
             </a>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
             
             <section class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40">
-                <div class="flex items-center space-x-4 mb-8">
+                <div class="flex items-center space-x-4 mb-2">
                     <div class="w-10 h-10 bg-slate-900 text-[#B9D977] rounded-xl flex items-center justify-center shadow-lg"><i class="fa-solid fa-plus text-lg"></i></div>
                     <h2 class="text-xl font-bold text-slate-800 tracking-tight">Quick Management</h2>
                 </div>
-                <!-- UPDATED GRID: Changed to 4 columns to fit the new WhatsApp Button -->
+                <p class="text-slate-400 text-sm font-medium mb-8 ml-1">Jump straight to the task you need.</p>
+                <!-- 4 columns to fit the WhatsApp button -->
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <a href="patient_add.php" class="flex flex-col items-center justify-center p-6 bg-slate-50 border border-slate-100 rounded-[2rem] hover:bg-white hover:border-[#0097B2] hover:shadow-lg transition group">
                         <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-[#0097B2] mb-3 group-hover:scale-110 transition"><i class="fa-solid fa-user-plus text-xl"></i></div>
@@ -203,13 +239,12 @@ $today_appt_res = mysqli_query($conn, $today_appt_sql);
                     </a>
                     <a href="sales.php" class="flex flex-col items-center justify-center p-6 bg-slate-50 border border-slate-100 rounded-[2rem] hover:bg-white hover:border-[#0097B2] hover:shadow-lg transition group">
                         <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-[#0097B2] mb-3 group-hover:scale-110 transition"><i class="fa-solid fa-receipt text-xl"></i></div>
-                        <span class="text-xs font-bold text-slate-600 group-hover:text-[#0097B2]">Add Sales</span>
+                        <span class="text-xs font-bold text-slate-600 group-hover:text-[#0097B2]">Record Sale</span>
                     </a>
                     <a href="inventory.php" class="flex flex-col items-center justify-center p-6 bg-slate-50 border border-slate-100 rounded-[2rem] hover:bg-white hover:border-[#0097B2] hover:shadow-lg transition group">
                         <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-[#0097B2] mb-3 group-hover:scale-110 transition"><i class="fa-solid fa-box-open text-xl"></i></div>
                         <span class="text-xs font-bold text-slate-600 group-hover:text-[#0097B2]">Add Stock</span>
                     </a>
-                    <!-- NEW WHATSAPP MESSAGING BUTTON -->
                     <a href="whatsapp_messages.php" class="flex flex-col items-center justify-center p-6 bg-slate-50 border border-slate-100 rounded-[2rem] hover:bg-white hover:border-green-500 hover:shadow-lg transition group">
                         <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-green-500 mb-3 group-hover:scale-110 transition"><i class="fa-brands fa-whatsapp text-xl"></i></div>
                         <span class="text-xs font-bold text-slate-600 group-hover:text-green-500">Messages</span>
@@ -256,14 +291,14 @@ $today_appt_res = mysqli_query($conn, $today_appt_sql);
             <section class="bg-slate-900 p-8 rounded-[2.5rem] border border-slate-800 shadow-2xl relative overflow-hidden group">
                 <div class="absolute top-0 right-0 w-32 h-32 bg-[#0097B2]/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
                 
-                <div class="flex items-center space-x-4 mb-8 relative z-10">
+                <div class="flex items-center space-x-4 mb-2 relative z-10">
                     <div class="w-10 h-10 bg-white/10 text-[#B9D977] rounded-xl flex items-center justify-center border border-white/10">
                         <i class="fa-solid fa-chart-line text-lg"></i>
                     </div>
                     <h2 class="text-xl font-bold text-white tracking-tight">Generate Reports</h2>
                 </div>
 
-                <p class="text-slate-400 text-xs mb-8 relative z-10">Export summarized data for clinic analysis and auditing purposes. (Pages coming soon)</p>
+                <p class="text-slate-400 text-xs mb-8 relative z-10 ml-1">Export summarized data for clinic analysis and auditing.</p>
 
                 <div class="space-y-4 relative z-10">
                     <a href="report_sales.php" class="w-full flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-[#0097B2] hover:border-transparent transition text-white group cursor-pointer block">
@@ -280,6 +315,14 @@ $today_appt_res = mysqli_query($conn, $today_appt_sql);
                             <span class="text-sm font-semibold tracking-wide group-hover:text-slate-900 transition">Stock & Inventory Audit</span>
                         </div>
                         <i class="fa-solid fa-chevron-right text-[10px] text-slate-600 group-hover:text-slate-900"></i>
+                    </a>
+
+                    <a href="reports.php" class="w-full flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition text-white group cursor-pointer block">
+                        <div class="flex items-center space-x-3">
+                            <i class="fa-solid fa-table-list text-slate-400 group-hover:text-white transition"></i>
+                            <span class="text-sm font-semibold tracking-wide">See all reports</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-[10px] text-slate-600 group-hover:text-white"></i>
                     </a>
                 </div>
                 

@@ -34,7 +34,6 @@ if ($export === 'pdf' || $export === 'excel') {
     <?php include('sidebar.php'); ?>
 
     <main class="flex-1 ml-72 p-12">
-        <div id="reportContent">
         <header class="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 mb-10">
             <div>
                 <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">Stock Valuation</h1>

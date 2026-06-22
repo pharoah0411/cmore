@@ -32,8 +32,8 @@ if ($export === 'pdf' || $export === 'excel') {
 </head>
 <body class="bg-[#f8fafc] flex min-h-screen text-slate-900">
     <?php include('sidebar.php'); ?>
+    
     <main class="flex-1 ml-72 p-12">
-        <div id="reportContent">
         <header class="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 mb-10">
             <div>
                 <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">Revenue Analysis</h1>
@@ -55,107 +55,105 @@ if ($export === 'pdf' || $export === 'excel') {
             </div>
         </header>
 
-        <section id="reportContent" class="rounded-[2.5rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden">
+        <div id="reportContent">
+            <?php
+            $month_start = date('Y-m-01');
+            $month_end = date('Y-m-t');
 
-        <?php
-        $month_start = date('Y-m-01');
-        $month_end = date('Y-m-t');
+            $month_data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS sale_count, COALESCE(SUM(TOTAL_AMOUNT),0) AS gross_revenue, COALESCE(SUM(PAID_AMOUNT),0) AS paid_revenue FROM SALES WHERE SALE_DATE BETWEEN '$month_start' AND '$month_end'"));
+            $outstanding = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS open_sales, COALESCE(SUM(TOTAL_AMOUNT - PAID_AMOUNT),0) AS balance FROM SALES WHERE PAYMENT_STATUS <> 'Paid'"));
+            $top_products = mysqli_query($conn, "SELECT p.BRAND_NAME, SUM(si.QUANTITY) AS qty_sold, COALESCE(SUM(si.QUANTITY * p.UNIT_PRICE),0) AS revenue FROM SALES_ITEM si JOIN PRODUCT p ON si.PRODUCT_ID = p.PRODUCT_ID GROUP BY p.PRODUCT_ID, p.BRAND_NAME ORDER BY qty_sold DESC LIMIT 6");
+            $top_customers = mysqli_query($conn, "SELECT COALESCE(p.NAME, 'Walk-in') AS customer_name, COALESCE(SUM(s.TOTAL_AMOUNT),0) AS total_spent FROM SALES s LEFT JOIN PATIENT p ON s.PATIENT_ID = p.PATIENT_ID GROUP BY s.PATIENT_ID, p.NAME ORDER BY total_spent DESC LIMIT 6");
+            ?>
 
-        $month_data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS sale_count, COALESCE(SUM(TOTAL_AMOUNT),0) AS gross_revenue, COALESCE(SUM(PAID_AMOUNT),0) AS paid_revenue FROM SALES WHERE SALE_DATE BETWEEN '$month_start' AND '$month_end'"));
-        $outstanding = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS open_sales, COALESCE(SUM(TOTAL_AMOUNT - PAID_AMOUNT),0) AS balance FROM SALES WHERE PAYMENT_STATUS <> 'Paid'"));
-        $top_products = mysqli_query($conn, "SELECT p.BRAND_NAME, SUM(si.QUANTITY) AS qty_sold, COALESCE(SUM(si.QUANTITY * p.UNIT_PRICE),0) AS revenue FROM SALES_ITEM si JOIN PRODUCT p ON si.PRODUCT_ID = p.PRODUCT_ID GROUP BY p.PRODUCT_ID, p.BRAND_NAME ORDER BY qty_sold DESC LIMIT 6");
-        $top_customers = mysqli_query($conn, "SELECT COALESCE(p.NAME, 'Walk-in') AS customer_name, COALESCE(SUM(s.TOTAL_AMOUNT),0) AS total_spent FROM SALES s LEFT JOIN PATIENT p ON s.PATIENT_ID = p.PATIENT_ID GROUP BY s.PATIENT_ID, p.NAME ORDER BY total_spent DESC LIMIT 6");
-
-        ?>
-
-        <div class="grid gap-6 xl:grid-cols-3 mb-10">
-            <div class="rounded-[2rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40">
-                <p class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2] mb-3">This Month</p>
-                <p class="text-4xl font-black text-slate-900">RM <?php echo number_format($month_data['gross_revenue'],2); ?></p>
-                <p class="text-sm text-slate-500 mt-3">Across <?php echo $month_data['sale_count']; ?> transactions.</p>
-            </div>
-            <div class="rounded-[2rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40">
-                <p class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2] mb-3">Collected</p>
-                <p class="text-4xl font-black text-slate-900">RM <?php echo number_format($month_data['paid_revenue'],2); ?></p>
-                <p class="text-sm text-slate-500 mt-3">Payment captured through all methods.</p>
-            </div>
-            <div class="rounded-[2rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40">
-                <p class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2] mb-3">Outstanding</p>
-                <p class="text-4xl font-black text-slate-900">RM <?php echo number_format($outstanding['balance'],2); ?></p>
-                <p class="text-sm text-slate-500 mt-3"><?php echo $outstanding['open_sales']; ?> invoices require follow-up.</p>
-            </div>
-        </div>
-
-        <div class="flex items-center justify-between mb-6">
-            <div>
-                <p class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2]">Revenue Analysis</p>
-                <h2 class="text-2xl font-bold text-slate-900 mt-2">Sales Performance</h2>
-            </div>
-            <span class="text-sm text-slate-500">All-time metrics</span>
-        </div>
-
-        <div class="grid gap-6 xl:grid-cols-2">
-            <div class="rounded-[2.5rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40">
-                <div class="flex items-center justify-between mb-6">
-                    <div>
-                        <p class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2]">Top Selling Products</p>
-                        <h2 class="text-2xl font-bold text-slate-900 mt-2">Volume Leaders</h2>
-                    </div>
-                    <span class="text-[10px] uppercase font-black tracking-[0.25em] text-slate-400">Past 12 months</span>
+            <div class="grid gap-6 xl:grid-cols-3 mb-10">
+                <div class="rounded-[2rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40">
+                    <p class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2] mb-3">This Month</p>
+                    <p class="text-4xl font-black text-slate-900">RM <?php echo number_format($month_data['gross_revenue'],2); ?></p>
+                    <p class="text-sm text-slate-500 mt-3">Across <?php echo $month_data['sale_count']; ?> transactions.</p>
                 </div>
-                <div class="space-y-4">
-                    <?php if($top_products && mysqli_num_rows($top_products) > 0): ?>
-                        <?php while($product = mysqli_fetch_assoc($top_products)): ?>
-                            <div class="rounded-3xl bg-slate-50 p-5">
-                                <div class="flex items-center justify-between gap-4">
-                                    <div>
-                                        <p class="font-bold text-slate-900"><?php echo htmlspecialchars($product['BRAND_NAME']); ?></p>
-                                        <p class="text-sm text-slate-500 mt-1"><?php echo number_format($product['qty_sold']); ?> units sold</p>
-                                    </div>
-                                    <div class="text-right">
-                                        <p class="text-sm font-bold text-slate-900">RM <?php echo number_format($product['revenue'],2); ?></p>
-                                        <p class="text-[11px] uppercase tracking-[0.2em] text-slate-400">Revenue</p>
+                <div class="rounded-[2rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40">
+                    <p class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2] mb-3">Collected</p>
+                    <p class="text-4xl font-black text-slate-900">RM <?php echo number_format($month_data['paid_revenue'],2); ?></p>
+                    <p class="text-sm text-slate-500 mt-3">Payment captured through all methods.</p>
+                </div>
+                <div class="rounded-[2rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40">
+                    <p class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2] mb-3">Outstanding</p>
+                    <p class="text-4xl font-black text-slate-900">RM <?php echo number_format($outstanding['balance'],2); ?></p>
+                    <p class="text-sm text-slate-500 mt-3"><?php echo $outstanding['open_sales']; ?> invoices require follow-up.</p>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <p class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2]">Revenue Analysis</p>
+                    <h2 class="text-2xl font-bold text-slate-900 mt-2">Sales Performance</h2>
+                </div>
+                <span class="text-sm text-slate-500">All-time metrics</span>
+            </div>
+
+            <div class="grid gap-6 xl:grid-cols-2">
+                <section class="rounded-[2.5rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <p class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2]">Top Selling Products</p>
+                            <h2 class="text-2xl font-bold text-slate-900 mt-2">Volume Leaders</h2>
+                        </div>
+                        <span class="text-[10px] uppercase font-black tracking-[0.25em] text-slate-400">Past 12 months</span>
+                    </div>
+                    <div class="space-y-4">
+                        <?php if($top_products && mysqli_num_rows($top_products) > 0): ?>
+                            <?php while($product = mysqli_fetch_assoc($top_products)): ?>
+                                <div class="rounded-3xl bg-slate-50 p-5">
+                                    <div class="flex items-center justify-between gap-4">
+                                        <div>
+                                            <p class="font-bold text-slate-900"><?php echo htmlspecialchars($product['BRAND_NAME']); ?></p>
+                                            <p class="text-sm text-slate-500 mt-1"><?php echo number_format($product['qty_sold']); ?> units sold</p>
+                                        </div>
+                                        <div class="text-right">
+                                            <p class="text-sm font-bold text-slate-900">RM <?php echo number_format($product['revenue'],2); ?></p>
+                                            <p class="text-[11px] uppercase tracking-[0.2em] text-slate-400">Revenue</p>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        <?php endwhile; ?>
-                    <?php else: ?>
-                        <p class="text-sm text-slate-500">No product sales data available.</p>
-                    <?php endif; ?>
-                </div>
-            </div>
-
-            <div class="rounded-[2.5rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40">
-                <div class="flex items-center justify-between mb-6">
-                    <div>
-                        <p class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2]">Top Customers</p>
-                        <h2 class="text-2xl font-bold text-slate-900 mt-2">Highest Spending</h2>
+                            <?php endwhile; ?>
+                        <?php else: ?>
+                            <p class="text-sm text-slate-500">No product sales data available.</p>
+                        <?php endif; ?>
                     </div>
-                    <span class="text-[10px] uppercase font-black tracking-[0.25em] text-slate-400">All time</span>
-                </div>
-                <div class="space-y-4">
-                    <?php if($top_customers && mysqli_num_rows($top_customers) > 0): ?>
-                        <?php while($customer = mysqli_fetch_assoc($top_customers)): ?>
-                            <div class="rounded-3xl bg-slate-50 p-5">
-                                <div class="flex items-center justify-between gap-4">
-                                    <div>
-                                        <p class="font-bold text-slate-900"><?php echo htmlspecialchars($customer['customer_name']); ?></p>
-                                        <p class="text-sm text-slate-500 mt-1">Total spent</p>
-                                    </div>
-                                    <div class="text-right">
-                                        <p class="text-sm font-bold text-slate-900">RM <?php echo number_format($customer['total_spent'],2); ?></p>
+                </section>
+
+                <section class="rounded-[2.5rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <p class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2]">Top Customers</p>
+                            <h2 class="text-2xl font-bold text-slate-900 mt-2">Highest Spending</h2>
+                        </div>
+                        <span class="text-[10px] uppercase font-black tracking-[0.25em] text-slate-400">All time</span>
+                    </div>
+                    <div class="space-y-4">
+                        <?php if($top_customers && mysqli_num_rows($top_customers) > 0): ?>
+                            <?php while($customer = mysqli_fetch_assoc($top_customers)): ?>
+                                <div class="rounded-3xl bg-slate-50 p-5">
+                                    <div class="flex items-center justify-between gap-4">
+                                        <div>
+                                            <p class="font-bold text-slate-900"><?php echo htmlspecialchars($customer['customer_name']); ?></p>
+                                            <p class="text-sm text-slate-500 mt-1">Total spent</p>
+                                        </div>
+                                        <div class="text-right">
+                                            <p class="text-sm font-bold text-slate-900">RM <?php echo number_format($customer['total_spent'],2); ?></p>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        <?php endwhile; ?>
-                    <?php else: ?>
-                        <p class="text-sm text-slate-500">No customer spending information found.</p>
-                    <?php endif; ?>
-                </div>
+                            <?php endwhile; ?>
+                        <?php else: ?>
+                            <p class="text-sm text-slate-500">No customer spending information found.</p>
+                        <?php endif; ?>
+                    </div>
+                </section>
             </div>
         </div>
-        </section>
-    </main>
+        </main>
     
     <script>
         function buildPrintableHTML(contentHtml) {

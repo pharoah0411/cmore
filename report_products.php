@@ -35,7 +35,6 @@ if ($export === 'pdf' || $export === 'excel') {
     <?php include('sidebar.php'); ?>
 
     <main class="flex-1 ml-72 p-12">
-        <div id="reportContent">
         <header class="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 mb-10">
             <div>
                 <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">Top Selling Products</h1>
@@ -59,77 +58,79 @@ if ($export === 'pdf' || $export === 'excel') {
 
         <section id="reportContent" class="rounded-[2.5rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden">
 
-        <?php
-        $top_products = mysqli_query($conn, "SELECT p.PRODUCT_ID, p.BRAND_NAME, p.CATEGORY, COALESCE(SUM(si.QUANTITY),0) AS qty_sold, COALESCE(SUM(si.QUANTITY * p.UNIT_PRICE),0) AS revenue FROM SALES_ITEM si JOIN PRODUCT p ON si.PRODUCT_ID = p.PRODUCT_ID GROUP BY p.PRODUCT_ID, p.BRAND_NAME, p.CATEGORY ORDER BY qty_sold DESC LIMIT 10");
-        $product_count = mysqli_num_rows($top_products);
-        $total_units = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COALESCE(SUM(QUANTITY),0) AS total FROM SALES_ITEM"));
-        $top_brand = mysqli_fetch_assoc(mysqli_query($conn, "SELECT p.BRAND_NAME, SUM(si.QUANTITY) AS units FROM SALES_ITEM si JOIN PRODUCT p ON si.PRODUCT_ID = p.PRODUCT_ID GROUP BY p.PRODUCT_ID, p.BRAND_NAME ORDER BY units DESC LIMIT 1"));
+            <?php
+            $top_products = mysqli_query($conn, "SELECT p.PRODUCT_ID, p.BRAND_NAME, p.CATEGORY, COALESCE(SUM(si.QUANTITY),0) AS qty_sold, COALESCE(SUM(si.QUANTITY * p.UNIT_PRICE),0) AS revenue FROM SALES_ITEM si JOIN PRODUCT p ON si.PRODUCT_ID = p.PRODUCT_ID GROUP BY p.PRODUCT_ID, p.BRAND_NAME, p.CATEGORY ORDER BY qty_sold DESC LIMIT 10");
+            $product_count = mysqli_num_rows($top_products);
+            $total_units = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COALESCE(SUM(QUANTITY),0) AS total FROM SALES_ITEM"));
+            $top_brand = mysqli_fetch_assoc(mysqli_query($conn, "SELECT p.BRAND_NAME, SUM(si.QUANTITY) AS units FROM SALES_ITEM si JOIN PRODUCT p ON si.PRODUCT_ID = p.PRODUCT_ID GROUP BY p.PRODUCT_ID, p.BRAND_NAME ORDER BY units DESC LIMIT 1"));
+            ?>
 
-        ?>
-
-        <div class="flex items-center justify-between mb-6">
-            <div>
-                <p class="text-xs font-black uppercase tracking-[0.2em] text-[#a3e635]">Top Selling Products</p>
-                <h2 class="text-2xl font-bold text-slate-900 mt-2">Best-Selling Stock</h2>
-            </div>
-            <span class="text-sm text-slate-500">Top 10 products by quantity</span>
-        </div>
-
-        <div class="grid gap-6 xl:grid-cols-3 mb-10">
-            <div class="rounded-[2rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40">
-                <p class="text-xs font-black uppercase tracking-[0.2em] text-[#a3e635] mb-3">SKU Count</p>
-                <p class="text-4xl font-black text-slate-900"><?php echo number_format($product_count); ?></p>
-                <p class="text-sm text-slate-500 mt-3">Top product lines contributing to revenue.</p>
-            </div>
-            <div class="rounded-[2rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40">
-                <p class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2] mb-3">Units Sold</p>
-                <p class="text-4xl font-black text-slate-900"><?php echo number_format($total_units['total']); ?></p>
-                <p class="text-sm text-slate-500 mt-3">Cumulative sales across all products.</p>
-            </div>
-            <div class="rounded-[2rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40">
-                <p class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2] mb-3">Top Product</p>
-                <p class="text-4xl font-black text-slate-900"><?php echo htmlspecialchars($top_brand['BRAND_NAME'] ?? 'N/A'); ?></p>
-                <p class="text-sm text-slate-500 mt-3">Highest-selling brand by volume.</p>
-            </div>
-        </div>
-
-        <section class="rounded-[2.5rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden">
             <div class="flex items-center justify-between mb-6">
                 <div>
-                    <p class="text-xs font-black uppercase tracking-[0.2em] text-[#a3e635]">Sales Ranking</p>
+                    <p class="text-xs font-black uppercase tracking-[0.2em] text-[#a3e635]">Top Selling Products</p>
                     <h2 class="text-2xl font-bold text-slate-900 mt-2">Best-Selling Stock</h2>
                 </div>
                 <span class="text-sm text-slate-500">Top 10 products by quantity</span>
             </div>
 
-            <?php if($top_products && mysqli_num_rows($top_products) > 0): ?>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full text-left border-collapse">
-                        <thead class="bg-slate-50 border-b border-slate-200">
-                            <tr>
-                                <th class="px-6 py-4 text-xs font-black uppercase tracking-[0.18em] text-slate-400">Product</th>
-                                <th class="px-6 py-4 text-xs font-black uppercase tracking-[0.18em] text-slate-400">Category</th>
-                                <th class="px-6 py-4 text-xs font-black uppercase tracking-[0.18em] text-slate-400">Units Sold</th>
-                                <th class="px-6 py-4 text-xs font-black uppercase tracking-[0.18em] text-slate-400">Revenue</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            <?php while($product = mysqli_fetch_assoc($top_products)): ?>
-                                <tr class="hover:bg-slate-50 transition-colors">
-                                    <td class="px-6 py-5 font-semibold text-slate-900"><?php echo htmlspecialchars($product['BRAND_NAME']); ?></td>
-                                    <td class="px-6 py-5 text-slate-700"><?php echo htmlspecialchars($product['CATEGORY'] ?: 'Uncategorized'); ?></td>
-                                    <td class="px-6 py-5 text-slate-700"><?php echo number_format($product['qty_sold']); ?></td>
-                                    <td class="px-6 py-5 font-bold text-slate-900">RM <?php echo number_format($product['revenue'],2); ?></td>
-                                </tr>
-                            <?php endwhile; ?>
-                        </tbody>
-                    </table>
+            <div class="grid gap-6 xl:grid-cols-3 mb-10">
+                <div class="rounded-[2rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40">
+                    <p class="text-xs font-black uppercase tracking-[0.2em] text-[#a3e635] mb-3">SKU Count</p>
+                    <p class="text-4xl font-black text-slate-900"><?php echo number_format($product_count); ?></p>
+                    <p class="text-sm text-slate-500 mt-3">Top product lines contributing to revenue.</p>
                 </div>
-            <?php else: ?>
-                <p class="text-sm text-slate-500">No sales items were found for this report.</p>
-            <?php endif; ?>
-        </section>
-        </div>
+                <div class="rounded-[2rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40">
+                    <p class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2] mb-3">Units Sold</p>
+                    <p class="text-4xl font-black text-slate-900"><?php echo number_format($total_units['total']); ?></p>
+                    <p class="text-sm text-slate-500 mt-3">Cumulative sales across all products.</p>
+                </div>
+                <div class="rounded-[2rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40">
+                    <p class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2] mb-3">Top Product</p>
+                    <p class="text-4xl font-black text-slate-900"><?php echo htmlspecialchars($top_brand['BRAND_NAME'] ?? 'N/A'); ?></p>
+                    <p class="text-sm text-slate-500 mt-3">Highest-selling brand by volume.</p>
+                </div>
+            </div>
+
+            <section class="rounded-[2.5rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <p class="text-xs font-black uppercase tracking-[0.2em] text-[#a3e635]">Sales Ranking</p>
+                        <h2 class="text-2xl font-bold text-slate-900 mt-2">Best-Selling Stock</h2>
+                    </div>
+                    <span class="text-sm text-slate-500">Top 10 products by quantity</span>
+                </div>
+
+                <?php if($top_products && mysqli_num_rows($top_products) > 0): ?>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-left border-collapse">
+                            <thead class="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th class="px-6 py-4 text-xs font-black uppercase tracking-[0.18em] text-slate-400">Product</th>
+                                    <th class="px-6 py-4 text-xs font-black uppercase tracking-[0.18em] text-slate-400">Category</th>
+                                    <th class="px-6 py-4 text-xs font-black uppercase tracking-[0.18em] text-slate-400">Units Sold</th>
+                                    <th class="px-6 py-4 text-xs font-black uppercase tracking-[0.18em] text-slate-400">Revenue</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <?php 
+                                // Reset the pointer since we looped to count rows earlier
+                                mysqli_data_seek($top_products, 0);
+                                while($product = mysqli_fetch_assoc($top_products)): 
+                                ?>
+                                    <tr class="hover:bg-slate-50 transition-colors">
+                                        <td class="px-6 py-5 font-semibold text-slate-900"><?php echo htmlspecialchars($product['BRAND_NAME']); ?></td>
+                                        <td class="px-6 py-5 text-slate-700"><?php echo htmlspecialchars($product['CATEGORY'] ?: 'Uncategorized'); ?></td>
+                                        <td class="px-6 py-5 text-slate-700"><?php echo number_format($product['qty_sold']); ?></td>
+                                        <td class="px-6 py-5 font-bold text-slate-900">RM <?php echo number_format($product['revenue'],2); ?></td>
+                                    </tr>
+                                <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php else: ?>
+                    <p class="text-sm text-slate-500">No sales items were found for this report.</p>
+                <?php endif; ?>
+            </section>
         </section>
     </main>
     
