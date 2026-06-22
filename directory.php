@@ -1,5 +1,6 @@
 <?php 
 include('config.php'); 
+include 'check_expiry.php';
 // Fetch dynamic counts from database tables
 $p_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as t FROM PATIENT"))['t'];
 $a_count = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as t FROM APPOINTMENT WHERE STATUS != 'Completed'"))['t'];
@@ -215,6 +216,42 @@ $today_appt_res = mysqli_query($conn, $today_appt_sql);
                     </a>
                 </div>
             </section>
+
+            <?php if($_SESSION['ROLE'] === 'Admin'): ?>
+            <section class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40">
+                <div class="flex items-center space-x-4 mb-8">
+                    <div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center shadow-lg"><i class="fa-solid fa-users-gear text-lg"></i></div>
+                    <h2 class="text-xl font-bold text-slate-800 tracking-tight">Staff Management</h2>
+                </div>
+                <p class="text-slate-600 text-sm mb-6">Add new staff members or optometrists to the system.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <a href="staff_add.php" class="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-2xl hover:bg-blue-100 hover:border-blue-300 transition group">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-blue-600 group-hover:text-blue-700">
+                                <i class="fa-solid fa-user-tie text-lg"></i>
+                            </div>
+                            <div>
+                                <p class="font-bold text-blue-900">Add Staff Member</p>
+                                <p class="text-xs text-blue-600">Register new staff</p>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-arrow-right text-blue-400 group-hover:text-blue-600"></i>
+                    </a>
+                    <a href="optometrist_add.php" class="flex items-center justify-between p-4 bg-purple-50 border border-purple-200 rounded-2xl hover:bg-purple-100 hover:border-purple-300 transition group">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-purple-600 group-hover:text-purple-700">
+                                <i class="fa-solid fa-user-doctor text-lg"></i>
+                            </div>
+                            <div>
+                                <p class="font-bold text-purple-900">Add Optometrist</p>
+                                <p class="text-xs text-purple-600">Register new optometrist</p>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-arrow-right text-purple-400 group-hover:text-purple-600"></i>
+                    </a>
+                </div>
+            </section>
+            <?php endif; ?>
 
             <section class="bg-slate-900 p-8 rounded-[2.5rem] border border-slate-800 shadow-2xl relative overflow-hidden group">
                 <div class="absolute top-0 right-0 w-32 h-32 bg-[#0097B2]/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>

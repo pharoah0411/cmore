@@ -24,6 +24,19 @@
             </a>
         </header>
 
+        <!-- Success & Error Messages -->
+        <?php if(isset($_GET['msg']) && $_GET['msg'] == 'deleted'): ?>
+        <div class="bg-green-50 border border-green-200 text-green-700 p-5 rounded-2xl mb-8 flex items-center shadow-sm">
+            <i class="fa-solid fa-check-circle mr-3 text-lg text-green-600"></i>
+            <p class="font-bold text-sm">Sale transaction deleted successfully and logged in audit trail.</p>
+        </div>
+        <?php elseif(isset($_GET['error']) && $_GET['error'] == 'unauthorized'): ?>
+        <div class="bg-red-50 border border-red-200 text-red-700 p-5 rounded-2xl mb-8 flex items-center shadow-sm">
+            <i class="fa-solid fa-exclamation-circle mr-3 text-lg text-red-600"></i>
+            <p class="font-bold text-sm">You are not authorized to delete sales. Only Optometrists and Admins can delete transactions.</p>
+        </div>
+        <?php endif; ?>
+
         <?php if(isset($_GET['new_sale_id'])): $sid = htmlspecialchars($_GET['new_sale_id']); ?>
         <div id="receiptModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
             <div class="bg-white p-10 rounded-[2.5rem] shadow-2xl max-w-md w-full text-center border border-slate-100 animate-fade-in-up">
@@ -144,9 +157,23 @@
                             </span>
                         </td>
                         <td class="p-5 text-center">
-                            <a href="sales_view.php?id=<?php echo $row['SALE_ID']; ?>" class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-[#0097B2] hover:text-white transition shadow-sm">
-                                <i class="fa-solid fa-eye text-sm"></i>
-                            </a>
+                            <div class="flex items-center justify-center gap-2">
+                                <a href="sales_view.php?id=<?php echo $row['SALE_ID']; ?>" class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-[#0097B2] hover:text-white transition shadow-sm" title="View">
+                                    <i class="fa-solid fa-eye text-sm"></i>
+                                </a>
+                                <a href="sales_view.php?id=<?php echo $row['SALE_ID']; ?>&edit=1" class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-blue-500 hover:text-white transition shadow-sm" title="Edit">
+                                    <i class="fa-solid fa-edit text-sm"></i>
+                                </a>
+                                <?php if($_SESSION['ROLE'] === 'Optometrist' || $_SESSION['ROLE'] === 'Admin'): ?>
+                                    <button onclick="deleteSale(<?php echo $row['SALE_ID']; ?>, '<?php echo htmlspecialchars($row['PATIENT_NAME']); ?>')" class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-red-500 hover:text-white transition shadow-sm" title="Delete">
+                                        <i class="fa-solid fa-trash text-sm"></i>
+                                    </button>
+                                <?php else: ?>
+                                    <button onclick="requestApproval(<?php echo $row['SALE_ID']; ?>, '<?php echo htmlspecialchars($row['PATIENT_NAME']); ?>')" class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:bg-orange-500 hover:text-white transition shadow-sm" title="Request Delete Approval">
+                                        <i class="fa-solid fa-exclamation text-sm"></i>
+                                    </button>
+                                <?php endif; ?>
+                            </div>
                         </td>
                     </tr>
                     <?php endwhile; else: ?>
@@ -156,5 +183,78 @@
             </table>
         </div>
     </main>
+
+    <!-- Delete Confirmation Modal (for Optometrists/Admins) -->
+    <div id="deleteModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+        <div class="bg-white p-10 rounded-[2.5rem] shadow-2xl max-w-md w-full text-center border border-slate-100">
+            <div class="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl shadow-inner">
+                <i class="fa-solid fa-trash"></i>
+            </div>
+            <h2 class="text-2xl font-extrabold text-slate-800 mb-2 tracking-tight">Delete Sale?</h2>
+            <p class="text-slate-500 text-sm mb-8 font-medium">This will permanently remove the sale transaction for <span id="deleteName" class="font-bold text-slate-700"></span> and all related items.</p>
+            
+            <div class="space-y-3">
+                <button onclick="confirmDelete()" class="w-full bg-red-500 text-white py-4 rounded-2xl font-bold shadow-lg hover:scale-105 transition-all">
+                    <i class="fa-solid fa-check mr-2"></i> Confirm Delete
+                </button>
+                <button onclick="closeDeleteModal()" class="w-full text-slate-400 font-bold py-4 hover:text-slate-600 transition-colors uppercase tracking-widest text-[10px]">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approval Request Modal (for Staff) -->
+    <div id="approvalModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+        <div class="bg-white p-10 rounded-[2.5rem] shadow-2xl max-w-md w-full text-center border border-slate-100">
+            <div class="w-20 h-20 bg-orange-50 text-orange-500 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl shadow-inner">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <h2 class="text-2xl font-extrabold text-slate-800 mb-2 tracking-tight">Approval Required</h2>
+            <p class="text-slate-500 text-sm mb-8 font-medium">You cannot delete this sale for <span id="approvalName" class="font-bold text-slate-700"></span>. Only Optometrists can delete sales transactions.</p>
+            
+            <button onclick="closeApprovalModal()" class="w-full text-slate-400 font-bold py-4 hover:text-slate-600 transition-colors uppercase tracking-widest text-[10px]">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let deleteId = null;
+
+        function deleteSale(saleId, patientName) {
+            deleteId = saleId;
+            document.getElementById('deleteName').innerText = patientName;
+            document.getElementById('deleteModal').classList.remove('hidden');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.add('hidden');
+            deleteId = null;
+        }
+
+        function confirmDelete() {
+            if(deleteId) {
+                window.location.href = 'sales_delete.php?id=' + deleteId;
+            }
+        }
+
+        function requestApproval(saleId, patientName) {
+            document.getElementById('approvalName').innerText = patientName;
+            document.getElementById('approvalModal').classList.remove('hidden');
+        }
+
+        function closeApprovalModal() {
+            document.getElementById('approvalModal').classList.add('hidden');
+        }
+
+        // Close modals when clicking outside
+        document.getElementById('deleteModal')?.addEventListener('click', function(e) {
+            if(e.target === this) closeDeleteModal();
+        });
+        document.getElementById('approvalModal')?.addEventListener('click', function(e) {
+            if(e.target === this) closeApprovalModal();
+        });
+    </script>
 </body>
 </html>

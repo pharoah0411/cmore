@@ -10,6 +10,14 @@ if (empty($id)) {
 
 $error_msg = '';
 
+$res = mysqli_query($conn, "SELECT * FROM PATIENT WHERE PATIENT_ID = '$id'");
+$row = mysqli_fetch_assoc($res);
+
+if (!$row) {
+    echo "Patient record not found.";
+    exit();
+}
+
 if(isset($_POST['update'])) {
     $name = mysqli_real_escape_string($conn, $_POST['name']);
     $ic = trim(mysqli_real_escape_string($conn, $_POST['ic_number']));
@@ -19,24 +27,61 @@ if(isset($_POST['update'])) {
     $interval = mysqli_real_escape_string($conn, $_POST['follow_up']);
     $complaints = mysqli_real_escape_string($conn, $_POST['complaints']);
 
-    // Validation Logic
-    // IC format: exactly 12 digits OR 6 digits - 2 digits - 4 digits (e.g., 850101-14-5567)
-    if (!empty($ic) && !preg_match("/^(\d{12}|\d{6}-\d{2}-\d{4})$/", $ic)) {
-        $error_msg = "Invalid IC Format. Please enter a 12-digit number (e.g., 900101011234 or 900101-01-1234).";
+    // Validate Malaysian Phone Number Format
+    // Valid formats: 01X-XXXXXXX, 0XX-XXXXXXX, or without dash
+    // Must start with 0 and be 10-11 digits total
+    if (!empty($phone)) {
+        $phone_digits = preg_replace('/\D/', '', $phone);
+        
+        // Check if it's 10-11 digits starting with 0
+        if (strlen($phone_digits) < 10 || strlen($phone_digits) > 11 || $phone_digits[0] != '0') {
+            $error_msg = "Invalid Phone Number. Malaysian phone numbers must be 10-11 digits starting with 0 (e.g., 012-3456789 or 03-87654321).";
+        } 
+        // Additional validation: second digit should be 1-9
+        elseif (!preg_match("/^0[1-9]/", $phone_digits)) {
+            $error_msg = "Invalid Phone Number. Format should be 0X(X)-XXXXXXX (e.g., 012-3456789 or 03-87654321).";
+        }
+    } else {
+        $error_msg = "Phone Number is required.";
     }
 
-    // Phone format: starts with 0, 1-2 digits, optional dash, 7-8 digits (e.g., 012-3456789 or 0123456789)
-    if (empty($error_msg) && !preg_match("/^0\d{1,2}-?\d{7,8}$/", $phone)) {
-        $error_msg = "Invalid Phone Number Format. It should look like 012-3456789 or 0123456789.";
+    // Validate Malaysian IC Number (Optional)
+    // Format: YYMMDD-PB-GGGC or YYMMDDPBGGGC (12 digits total)
+    if (empty($error_msg) && !empty($ic)) {
+        $ic_digits = preg_replace('/\D/', '', $ic);
+        
+        if (strlen($ic_digits) != 12) {
+            $error_msg = "Invalid IC Number. Must be 12 digits (e.g., 900101-01-1234 or 900101011234).";
+        } 
+        // Validate format: YYMMDD (valid date format)
+        elseif (!preg_match("/^(\d{2})(\d{2})(\d{2})/", $ic_digits, $date_match)) {
+            $error_msg = "Invalid IC Number format.";
+        } 
+        // Check if date is valid (MM: 01-12, DD: 01-31)
+        else {
+            $month = intval($date_match[2]);
+            $day = intval($date_match[3]);
+            
+            if ($month < 1 || $month > 12 || $day < 1 || $day > 31) {
+                $error_msg = "Invalid IC Number. Birth date in IC is invalid (month must be 01-12, day must be 01-31).";
+            }
+            // State code should be 01-16
+            elseif (!preg_match("/^\d{6}(\d{2})/", $ic_digits, $state_match)) {
+                $error_msg = "Invalid IC Number format.";
+            }
+            else {
+                $state_code = intval($state_match[1]);
+                if ($state_code < 1 || $state_code > 16) {
+                    $error_msg = "Invalid IC Number. State code must be between 01-16.";
+                }
+            }
+        }
     }
 
-    // If no validation errors, proceed with the update
     if(empty($error_msg)) {
-        $ic_val = !empty($ic) ? "'$ic'" : "NULL";
-
         $update_sql = "UPDATE PATIENT SET 
                        NAME='$name', 
-                       IC_NUMBER=$ic_val, 
+                       IC_NUMBER='$ic', 
                        PHONE_NUMBER='$phone', 
                        ADDRESS='$address', 
                        CONNECTION_RELATIONSHIP='$connection', 
@@ -51,14 +96,6 @@ if(isset($_POST['update'])) {
             $error_msg = "Database Error: " . mysqli_error($conn);
         }
     }
-}
-
-$res = mysqli_query($conn, "SELECT * FROM PATIENT WHERE PATIENT_ID = '$id'");
-$row = mysqli_fetch_assoc($res);
-
-if (!$row) {
-    echo "Patient record not found.";
-    exit();
 }
 ?>
 <!DOCTYPE html>
@@ -103,18 +140,22 @@ if (!$row) {
                     <div class="space-y-2">
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-1">IC Number <span class="text-slate-300 font-medium normal-case tracking-normal ml-1">(Optional)</span></label>
                         <input type="text" name="ic_number" value="<?php echo htmlspecialchars(isset($_POST['ic_number']) ? $_POST['ic_number'] : $row['IC_NUMBER']); ?>" 
-                               pattern="^(\d{12}|\d{6}-\d{2}-\d{4})$" title="Must be a 12-digit number (e.g., 900101-01-1234 or 900101011234)"
+                               pattern="^(\d{12}|\d{6}-\d{2}-\d{4})$" placeholder="900101-01-1234 or 900101011234" 
+                               title="Malaysian IC format: 12 digits (YYMMDD-PB-GGGC or YYMMDDPBGGGC where PB=01-16)"
+                               maxlength="14"
                                class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none focus:bg-white transition invalid:border-red-400 invalid:text-red-600 focus:invalid:border-red-500">
                     </div>
                     <div class="space-y-2">
                         <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Phone Number</label>
-                        <input type="text" name="phone" value="<?php echo htmlspecialchars(isset($_POST['phone']) ? $_POST['phone'] : $row['PHONE_NUMBER']); ?>" required 
-                               pattern="^0\d{1,2}-?\d{7,8}$" title="Malaysian phone number format (e.g., 012-3456789)"
+                        <input type="tel" name="phone" id="phone" value="<?php echo htmlspecialchars(isset($_POST['phone']) ? $_POST['phone'] : $row['PHONE_NUMBER']); ?>" required 
+                               pattern="^0[1-9]-?\d{7,8}$|^0[1-9]{2}-?\d{6,7}$" placeholder="012-3456789 or 03-87654321" 
+                               title="Malaysian phone number: 10-11 digits starting with 0 (e.g., 012-3456789 or 03-87654321)" 
+                               maxlength="12"
                                class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none focus:bg-white transition invalid:border-red-400 invalid:text-red-600 focus:invalid:border-red-500">
                     </div>
                     <div class="space-y-2">
-                        <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Address</label>
-                        <input type="text" name="address" value="<?php echo htmlspecialchars(isset($_POST['address']) ? $_POST['address'] : $row['ADDRESS']); ?>" required 
+                        <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Address <span class="text-slate-300 font-medium normal-case tracking-normal ml-1">(Optional)</span></label>
+                        <input type="text" name="address" value="<?php echo htmlspecialchars(isset($_POST['address']) ? $_POST['address'] : $row['ADDRESS']); ?>" 
                                class="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none focus:bg-white transition">
                     </div>
                 </div>
@@ -168,5 +209,22 @@ if (!$row) {
             </div>
         </form>
     </main>
+    <script>
+        // Auto-format Malaysian phone number with dash
+        document.getElementById('phone').addEventListener('input', function (e) {
+            let x = e.target.value.replace(/\D/g, '').substring(0, 11); // Max 11 digits
+            
+            // Format as 0XX-XXXXXXX or 0X-XXXXXXXX based on second digit
+            if (x.length > 0) {
+                if (x.length <= 3) {
+                    e.target.value = x;
+                } else if (x.length > 3) {
+                    e.target.value = x.substring(0, x.length - 7) + '-' + x.substring(x.length - 7);
+                }
+            } else {
+                e.target.value = '';
+            }
+        });
+    </script>
 </body>
 </html>

@@ -124,10 +124,10 @@ if ($export === 'pdf' || $export === 'excel') {
                 <p class="text-slate-500 font-medium mt-2">Your selected custom report is shown below. Export options are available if your source data is present.</p>
             </div>
             <div class="flex flex-wrap gap-3">
-                <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 text-slate-700 font-bold shadow-sm hover:bg-slate-50 transition">
+                <button type="button" onclick="printReport()" class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 text-slate-700 font-bold shadow-sm hover:bg-slate-50 transition">
                     <i class="fa-solid fa-print"></i> Print
                 </button>
-                <a href="?<?php echo http_build_query(array_merge($_GET, ['export' => 'pdf'])); ?>" class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-[#0097B2] px-6 py-3 text-white font-bold shadow-sm hover:bg-teal-600 transition">
+                <a href="?<?php echo http_build_query(array_merge($_GET, ['export' => 'pdf'])); ?>" onclick="exportPdfPrintable(event)" class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-[#0097B2] px-6 py-3 text-white font-bold shadow-sm hover:bg-teal-600 transition">
                     <i class="fa-solid fa-file-pdf"></i> Export PDF
                 </a>
                 <a href="?<?php echo http_build_query(array_merge($_GET, ['export' => 'excel'])); ?>" class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-[#B9D977] px-6 py-3 text-slate-900 font-bold shadow-sm hover:bg-lime-400 transition">
@@ -199,7 +199,7 @@ if ($export === 'pdf' || $export === 'excel') {
 
         ?>
 
-        <section class="rounded-[2.5rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden">
+        <section id="reportContent" class="rounded-[2.5rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden">
             <div class="flex items-center justify-between mb-6">
                 <div>
                     <p class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2]">Custom Output</p>
@@ -257,5 +257,38 @@ if ($export === 'pdf' || $export === 'excel') {
             <?php endif; ?>
         </section>
     </main>
+    
+    <script>
+        function buildPrintableHTML(contentHtml) {
+            const head = document.head.innerHTML;
+            return `<!doctype html><html>${head}<body style="margin:0;padding:20px;background:#f8fafc;font-family: 'Plus Jakarta Sans', sans-serif;">${contentHtml}</body></html>`;
+        }
+
+        function printReport() {
+            const reportEl = document.getElementById('reportContent');
+            if (!reportEl) return window.print();
+            const printWindow = window.open('', '', 'height=800,width=1000');
+            const content = reportEl.outerHTML;
+            printWindow.document.write(buildPrintableHTML(content));
+            printWindow.document.close();
+            setTimeout(() => { printWindow.focus(); printWindow.print(); /* do not auto-close to allow PDF save */ }, 300);
+        }
+
+        function exportPdfPrintable(e) {
+            // If JS is enabled, open printable view and trigger print (user can choose Save as PDF)
+            if (e) e.preventDefault();
+            const reportEl = document.getElementById('reportContent');
+            if (!reportEl) {
+                // fallback to server-side PDF
+                window.location.href = e.target.href || window.location.href;
+                return;
+            }
+            const printWindow = window.open('', '', 'height=800,width=1000');
+            const content = reportEl.outerHTML;
+            printWindow.document.write(buildPrintableHTML(content));
+            printWindow.document.close();
+            setTimeout(() => { printWindow.focus(); printWindow.print(); }, 300);
+        }
+    </script>
 </body>
 </html>

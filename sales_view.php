@@ -1,8 +1,36 @@
 <?php 
 include('config.php'); 
 $id = isset($_GET['id']) ? mysqli_real_escape_string($conn, $_GET['id']) : '';
+$is_edit_mode = isset($_GET['edit']) && $_GET['edit'] == 1;
 
-// Handle Payment Update
+// Handle Edit Save
+if(isset($_POST['save_edit'])) {
+    $new_paid_amount = floatval($_POST['paid_amount']);
+    $new_payment_method = mysqli_real_escape_string($conn, $_POST['payment_method']);
+    
+    // Fetch sale details
+    $check = mysqli_fetch_assoc(mysqli_query($conn, "SELECT TOTAL_AMOUNT, PAID_AMOUNT, PAYMENT_METHOD FROM SALES WHERE SALE_ID = '$id'"));
+    $total = floatval($check['TOTAL_AMOUNT']);
+    
+    // Validate paid amount doesn't exceed total
+    if($new_paid_amount > $total) {
+        $new_paid_amount = $total;
+    }
+    
+    $status = ($new_paid_amount >= $total) ? 'Completed' : ($new_paid_amount > 0 ? 'Partial' : 'Pending');
+    
+    // Update the sale
+    $update_sql = "UPDATE SALES SET PAID_AMOUNT = '$new_paid_amount', PAYMENT_STATUS = '$status', PAYMENT_METHOD = '$new_payment_method' WHERE SALE_ID = '$id'";
+    
+    if(mysqli_query($conn, $update_sql)) {
+        // Log the edit in audit trail (all users logging edits)
+        systemLog($conn, "Edited sale transaction #TXN-$id (Changed paid amount to RM" . number_format($new_paid_amount, 2) . ")", "SALES", $id);
+        header("Location: sales_view.php?id=$id&msg=updated");
+        exit();
+    }
+}
+
+// Handle Payment Update (Quick Add)
 if(isset($_POST['add_payment'])) {
     $new_payment = floatval($_POST['payment_amount']);
     
@@ -21,6 +49,8 @@ if(isset($_POST['add_payment'])) {
     $status = ($updated_paid >= $total) ? 'Completed' : 'Partial';
     
     mysqli_query($conn, "UPDATE SALES SET PAID_AMOUNT = '$updated_paid', PAYMENT_STATUS = '$status' WHERE SALE_ID = '$id'");
+    // Log quick payment addition
+    systemLog($conn, "Added payment of RM" . number_format($new_payment, 2) . " to sale #TXN-$id", "SALES", $id);
     header("Location: sales_view.php?id=$id&msg=updated");
     exit();
 }
@@ -69,8 +99,25 @@ $status_color = $sale['PAYMENT_STATUS'] == 'Completed' ? 'bg-green-500' : ($sale
                 <a href="receipt.php?id=<?php echo $id; ?>&rx=0" target="_blank" class="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold hover:bg-slate-800 transition shadow-sm">
                     <i class="fa-solid fa-print mr-2"></i> Print Receipt
                 </a>
+                <?php if(!$is_edit_mode): ?>
+                    <a href="sales_view.php?id=<?php echo $id; ?>&edit=1" class="bg-blue-50 border border-blue-200 text-blue-600 px-6 py-3 rounded-xl font-bold hover:bg-blue-100 transition shadow-sm">
+                        <i class="fa-solid fa-edit mr-2"></i> Edit
+                    </a>
+                <?php else: ?>
+                    <a href="sales_view.php?id=<?php echo $id; ?>" class="bg-slate-50 border border-slate-200 text-slate-600 px-6 py-3 rounded-xl font-bold hover:bg-slate-100 transition shadow-sm">
+                        <i class="fa-solid fa-times mr-2"></i> Cancel Edit
+                    </a>
+                <?php endif; ?>
             </div>
         </header>
+
+        <!-- Success Message -->
+        <?php if(isset($_GET['msg']) && $_GET['msg'] == 'updated'): ?>
+        <div class="bg-green-50 border border-green-200 text-green-700 p-5 rounded-2xl mb-8 flex items-center shadow-sm">
+            <i class="fa-solid fa-check-circle mr-3 text-lg text-green-600"></i>
+            <p class="font-bold text-sm">Sale transaction updated successfully and logged in audit trail.</p>
+        </div>
+        <?php endif; ?>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div class="lg:col-span-2 space-y-8">
@@ -96,8 +143,56 @@ $status_color = $sale['PAYMENT_STATUS'] == 'Completed' ? 'bg-green-500' : ($sale
             <div class="space-y-8">
                 
                 <div class="bg-slate-900 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden">
-                    <h3 class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-6 border-b border-white/10 pb-4">Payment Ledger</h3>
+                    <h3 class="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-6 border-b border-white/10 pb-4">
+                        <?php echo $is_edit_mode ? 'Edit Payment Details' : 'Payment Ledger'; ?>
+                    </h3>
                     
+                    <?php if($is_edit_mode): ?>
+                    <!-- EDIT MODE FORM -->
+                    <form action="" method="POST" class="space-y-6">
+                        <div>
+                            <label class="text-[10px] font-black text-slate-300 uppercase block mb-3 tracking-widest">Total Amount</label>
+                            <p class="text-3xl font-mono font-bold text-white">RM <?php echo number_format($sale['TOTAL_AMOUNT'], 2); ?></p>
+                        </div>
+
+                        <div>
+                            <label class="text-[10px] font-black text-slate-300 uppercase block mb-3 tracking-widest">Paid Amount</label>
+                            <div class="relative">
+                                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">RM</span>
+                                <input type="number" step="0.01" min="0" max="<?php echo $sale['TOTAL_AMOUNT']; ?>" name="paid_amount" required
+                                       value="<?php echo $sale['PAID_AMOUNT']; ?>"
+                                       class="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-xl outline-none font-mono font-bold text-white focus:border-[#B9D977] transition-colors">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="text-[10px] font-black text-slate-300 uppercase block mb-3 tracking-widest">Payment Method</label>
+                            <select name="payment_method" class="w-full px-4 py-4 bg-white/10 border border-white/20 rounded-xl outline-none font-bold text-white focus:border-[#B9D977] transition-colors appearance-none cursor-pointer">
+                                <option value="Cash" <?php echo $sale['PAYMENT_METHOD'] == 'Cash' ? 'selected' : ''; ?>>Cash</option>
+                                <option value="Card" <?php echo $sale['PAYMENT_METHOD'] == 'Card' ? 'selected' : ''; ?>>Card</option>
+                                <option value="Online Transfer" <?php echo $sale['PAYMENT_METHOD'] == 'Online Transfer' ? 'selected' : ''; ?>>Online Transfer</option>
+                                <option value="Cheque" <?php echo $sale['PAYMENT_METHOD'] == 'Cheque' ? 'selected' : ''; ?>>Cheque</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="text-[10px] font-black text-slate-300 uppercase block mb-3 tracking-widest">Payment Status</label>
+                            <p class="text-lg font-bold text-[#B9D977] py-3">
+                                <i class="fa-solid fa-circle text-xs mr-2"></i>
+                                <?php 
+                                    $calc_status = ($sale['PAID_AMOUNT'] >= $sale['TOTAL_AMOUNT']) ? 'Completed' : ($sale['PAID_AMOUNT'] > 0 ? 'Partial' : 'Pending');
+                                    echo $calc_status;
+                                ?>
+                            </p>
+                        </div>
+
+                        <button type="submit" name="save_edit" class="w-full bg-[#B9D977] text-slate-900 py-4 rounded-xl font-black shadow-lg hover:scale-105 transition-all">
+                            <i class="fa-solid fa-save mr-2"></i> Save Changes
+                        </button>
+                    </form>
+                    <!-- END EDIT MODE -->
+                    <?php else: ?>
+                    <!-- VIEW MODE -->
                     <div class="space-y-5 mb-8">
                         <div class="flex justify-between items-center">
                             <p class="text-sm font-medium text-slate-300">Grand Total:</p>
@@ -142,7 +237,8 @@ $status_color = $sale['PAYMENT_STATUS'] == 'Completed' ? 'bg-green-500' : ($sale
                         <p class="text-green-500/70 text-xs font-medium mt-1">There is no remaining balance for this sale.</p>
                     </div>
                     <?php endif; ?>
-                </div>
+                    <!-- END VIEW MODE -->
+                    <?php endif; ?>
 
                 <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl space-y-6">
                     <div>

@@ -35,13 +35,14 @@ if ($export === 'pdf' || $export === 'excel') {
     <?php include('sidebar.php'); ?>
 
     <main class="flex-1 ml-72 p-12">
+        <div id="reportContent">
         <header class="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 mb-10">
             <div>
                 <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">Staff Performance</h1>
                 <p class="text-slate-500 font-medium mt-2">Evaluate optometrist productivity, appointment handling, and sales impact.</p>
             </div>
             <div class="flex flex-wrap gap-3">
-                <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 text-slate-700 font-bold shadow-sm hover:bg-slate-50 transition">
+                <button type="button" onclick="printReport()" class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 text-slate-700 font-bold shadow-sm hover:bg-slate-50 transition">
                     <i class="fa-solid fa-print"></i> Print Report
                 </button>
                 <a href="?export=pdf" class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-[#0097B2] px-6 py-3 text-white font-bold shadow-sm hover:bg-teal-600 transition">
@@ -56,10 +57,20 @@ if ($export === 'pdf' || $export === 'excel') {
             </div>
         </header>
 
+        <section id="reportContent" class="rounded-[2.5rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden">
+
         <?php
         $staff_stats = mysqli_query($conn, "SELECT u.USER_ID, u.NAME, COALESCE(x.exam_count,0) AS exam_count, COALESCE(y.sales_count,0) AS sales_count, COALESCE(y.revenue,0) AS revenue FROM USER u LEFT JOIN (SELECT OPTOMETRIST_ID, COUNT(*) AS exam_count FROM EYE_EXAMINATION GROUP BY OPTOMETRIST_ID) x ON x.OPTOMETRIST_ID = u.USER_ID LEFT JOIN (SELECT STAFF_ID, COUNT(*) AS sales_count, SUM(TOTAL_AMOUNT) AS revenue FROM SALES GROUP BY STAFF_ID) y ON y.STAFF_ID = u.USER_ID ORDER BY revenue DESC, exam_count DESC");
 
         ?>
+
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <p class="text-xs font-black uppercase tracking-[0.2em] text-[#f472b6]">Staff Performance</p>
+                <h2 class="text-2xl font-bold text-slate-900 mt-2">Staff Productivity</h2>
+            </div>
+            <span class="text-sm text-slate-500">Ranked by revenue</span>
+        </div>
 
         <div class="grid gap-6 xl:grid-cols-3 mb-10">
             <div class="rounded-[2rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40">
@@ -117,6 +128,8 @@ if ($export === 'pdf' || $export === 'excel') {
                 <p class="text-sm text-slate-500">No staff performance data is currently available.</p>
             <?php endif; ?>
         </section>
+        </div>
     </main>
+    <?php include('print_helper.php'); ?>
 </body>
 </html>

@@ -4,7 +4,6 @@ include('config.php');
 // ==========================================
 // ACCESS CONTROL
 // ==========================================
-// Kick out anyone who is not an Admin or Optometrist
 if (!isset($_SESSION['ROLE']) || ($_SESSION['ROLE'] !== 'Admin' && $_SESSION['ROLE'] !== 'Optometrist')) {
     systemLog($conn, 'Attempted unauthorized access to Clinical Exams');
     header("Location: directory.php");
@@ -12,21 +11,40 @@ if (!isset($_SESSION['ROLE']) || ($_SESSION['ROLE'] !== 'Admin' && $_SESSION['RO
 }
 
 // ==========================================
-// FETCH ALL EXAMS & HANDLE SEARCH
+// FETCH ALL EXAMS & HANDLE SEARCH / FILTERS
 // ==========================================
 $search_query = "";
-$where_clause = "";
+$where_clauses = [];
 
+// 1. Handle Search Box (Now searches by Phone Number instead of IC)
 if (isset($_GET['search']) && !empty(trim($_GET['search']))) {
     $search_query = mysqli_real_escape_string($conn, trim($_GET['search']));
-    $where_clause = "WHERE p.NAME LIKE '%$search_query%' 
-                     OR p.IC_NUMBER LIKE '%$search_query%' 
-                     OR e.PRESCRIPTION_RESULT LIKE '%$search_query%'";
+    $where_clauses[] = "(p.NAME LIKE '%$search_query%' 
+                         OR p.PHONE_NUMBER LIKE '%$search_query%' 
+                         OR e.PRESCRIPTION_RESULT LIKE '%$search_query%')";
 }
 
-// Ensure ALL patients show up by querying the 'patient' table first.
-// Then LEFT JOIN their most recent eye exam and the optometrist info.
-$query = "SELECT p.PATIENT_ID, p.NAME as PATIENT_NAME, p.IC_NUMBER, 
+// 2. Handle Sidebar Filters
+$filter_title = "All Patients"; // Default title
+if (isset($_GET['filter'])) {
+    $filter = $_GET['filter'];
+    if ($filter === 'with_rx') {
+        $where_clauses[] = "e.EXAM_ID IS NOT NULL"; // Only those with an exam record
+        $filter_title = "Patients With Prescription";
+    } elseif ($filter === 'no_rx') {
+        $where_clauses[] = "e.EXAM_ID IS NULL"; // Only those without an exam record
+        $filter_title = "Patients Without Prescription";
+    }
+}
+
+// Compile the WHERE statement
+$where_sql = "";
+if (count($where_clauses) > 0) {
+    $where_sql = "WHERE " . implode(" AND ", $where_clauses);
+}
+
+// Execute the Query (Fetching PHONE_NUMBER instead of IC_NUMBER)
+$query = "SELECT p.PATIENT_ID, p.NAME as PATIENT_NAME, p.PHONE_NUMBER, 
                  e.EXAM_ID, e.EXAM_DATE, e.PRESCRIPTION_RESULT, e.VISUAL_ACUITY_RESULTS,
                  e.RE_SPH, e.RE_CYL, e.RE_AXIS, e.LE_SPH, e.LE_CYL, e.LE_AXIS,
                  u.NAME as OPTOMETRIST_NAME 
@@ -37,7 +55,7 @@ $query = "SELECT p.PATIENT_ID, p.NAME as PATIENT_NAME, p.IC_NUMBER,
               )
           ) e ON p.PATIENT_ID = e.PATIENT_ID 
           LEFT JOIN user u ON e.OPTOMETRIST_ID = u.USER_ID 
-          $where_clause
+          $where_sql
           ORDER BY p.NAME ASC";
 $result = mysqli_query($conn, $query);
 
@@ -61,16 +79,20 @@ $result = mysqli_query($conn, $query);
         <div class="mb-10 flex flex-col md:flex-row md:justify-between md:items-end space-y-4 md:space-y-0">
             <div>
                 <h1 class="text-3xl font-black tracking-tight text-slate-900">Clinical Exam Records</h1>
-                <p class="text-slate-500 font-medium mt-1">View and manage all patient refractions and ocular health assessments.</p>
+                <p class="text-[#0097B2] font-bold mt-1 uppercase tracking-wider text-sm"><i class="fa-solid fa-filter mr-1"></i> Showing: <?php echo $filter_title; ?></p>
             </div>
             
             <div class="flex items-center space-x-4">
                 <form action="exam.php" method="GET" class="relative">
-                    <input type="text" name="search" value="<?php echo htmlspecialchars($search_query); ?>" placeholder="Search patient, IC, diagnosis..." 
+                    <?php if(isset($_GET['filter'])): ?>
+                        <input type="hidden" name="filter" value="<?php echo htmlspecialchars($_GET['filter']); ?>">
+                    <?php endif; ?>
+                    
+                    <input type="text" name="search" value="<?php echo htmlspecialchars($search_query); ?>" placeholder="Search patient, phone, diagnosis..." 
                            class="pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:border-[#0097B2] outline-none font-bold text-slate-700 text-sm shadow-sm w-64 transition">
                     <i class="fa-solid fa-magnifying-glass absolute left-4 top-[0.95rem] text-slate-400"></i>
                     <?php if(!empty($search_query)): ?>
-                        <a href="exam.php" class="absolute right-3 top-[0.95rem] text-red-400 hover:text-red-600"><i class="fa-solid fa-circle-xmark"></i></a>
+                        <a href="exam.php<?php echo isset($_GET['filter']) ? '?filter='.$_GET['filter'] : ''; ?>" class="absolute right-3 top-[0.95rem] text-red-400 hover:text-red-600"><i class="fa-solid fa-circle-xmark"></i></a>
                     <?php endif; ?>
                 </form>
 
@@ -114,7 +136,7 @@ $result = mysqli_query($conn, $query);
                                             </div>
                                             <div>
                                                 <p class="font-bold text-slate-800"><?php echo htmlspecialchars($row['PATIENT_NAME'] ?? 'Unknown Patient'); ?></p>
-                                                <p class="text-[10px] text-slate-400 font-mono"><?php echo htmlspecialchars($row['IC_NUMBER'] ?? ''); ?></p>
+                                                <p class="text-[10px] text-slate-400 font-mono"><i class="fa-solid fa-phone text-[8px] mr-1"></i><?php echo htmlspecialchars($row['PHONE_NUMBER'] ?: 'No Phone Number'); ?></p>
                                             </div>
                                         </div>
                                     </td>
@@ -195,7 +217,7 @@ $result = mysqli_query($conn, $query);
                                     <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl text-slate-300">
                                         <i class="fa-solid fa-folder-open"></i>
                                     </div>
-                                    <?php echo !empty($search_query) ? 'No records matched your search.' : 'No patients found in the system.'; ?>
+                                    <?php echo !empty($search_query) ? 'No records matched your search.' : 'No patients found matching this filter.'; ?>
                                 </td>
                             </tr>
                         <?php endif; ?>

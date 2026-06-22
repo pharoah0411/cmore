@@ -1,4 +1,5 @@
-<?php include('config.php'); ?>
+<?php include('config.php');
+include 'check_expiry.php'; ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -50,6 +51,15 @@
                     </select>
                     <i class="fa-solid fa-chevron-down absolute right-6 top-1/2 -translate-y-1/2 text-slate-400"></i>
                 </div>
+                <div class="relative w-full md:w-1/4">
+                    <?php $filter_selected = isset($_GET['filter']) ? $_GET['filter'] : ''; ?>
+                    <select name="filter" class="w-full pl-6 pr-10 py-4 bg-white border border-slate-100 rounded-[1.5rem] shadow-sm focus:border-[#0097B2] outline-none appearance-none font-bold text-slate-700">
+                        <option value="" <?php echo $filter_selected === '' ? 'selected' : ''; ?>>All Products</option>
+                        <option value="low" <?php echo $filter_selected === 'low' ? 'selected' : ''; ?>>Low Stock (&lt; 5)</option>
+                        <option value="expired" <?php echo $filter_selected === 'expired' ? 'selected' : ''; ?>>Expired</option>
+                    </select>
+                    <i class="fa-solid fa-chevron-down absolute right-6 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                </div>
                 <div class="relative flex-1">
                     <i class="fa-solid fa-magnifying-glass absolute left-6 top-1/2 -translate-y-1/2 text-slate-400"></i>
                     <input type="text" name="search" placeholder="Search Brand Name..." value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>" class="w-full pl-14 pr-6 py-4 bg-white border border-slate-100 rounded-[1.5rem] shadow-sm focus:border-[#0097B2] outline-none transition-all font-medium text-slate-700">
@@ -76,13 +86,23 @@
                     if (!empty($_GET['category'])) $where_clauses[] = "p.CATEGORY = '" . mysqli_real_escape_string($conn, $_GET['category']) . "'";
                     if (!empty($_GET['search'])) $where_clauses[] = "p.BRAND_NAME LIKE '%" . mysqli_real_escape_string($conn, $_GET['search']) . "%'";
 
+                    // Apply filter: low stock or expired
+                    $filter = isset($_GET['filter']) ? $_GET['filter'] : '';
+                    if ($filter === 'low') {
+                        $where_clauses[] = "p.STOCK_QUANTITY < 5";
+                    } elseif ($filter === 'expired') {
+                        $where_clauses[] = "p.EXPIRY_DATE IS NOT NULL AND DATE(p.EXPIRY_DATE) < CURDATE()";
+                    }
+
                     $where_sql = count($where_clauses) > 0 ? "WHERE " . implode(" AND ", $where_clauses) : "";
 
-                    $sql = "SELECT p.*, s.COMPANY_NAME, s.CONTACT_PERSON, s.PHONE_NUMBER, s.EMAIL 
+                        // Order low-stock products to the top: items with STOCK_QUANTITY < 5 first,
+                        // then by STOCK_QUANTITY ascending (lowest numbers first), then by category and brand.
+                        $sql = "SELECT p.*, s.COMPANY_NAME, s.CONTACT_PERSON, s.PHONE_NUMBER, s.EMAIL 
                             FROM PRODUCT p 
                             LEFT JOIN SUPPLIER s ON p.SUPPLIER_ID = s.SUPPLIER_ID 
                             $where_sql 
-                            ORDER BY p.CATEGORY ASC, p.BRAND_NAME ASC";
+                            ORDER BY (p.STOCK_QUANTITY < 5) DESC, p.STOCK_QUANTITY ASC, p.CATEGORY ASC, p.BRAND_NAME ASC";
                             
                     $res = mysqli_query($conn, $sql);
 

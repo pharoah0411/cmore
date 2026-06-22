@@ -12,6 +12,19 @@ if (!isset($_SESSION['ROLE']) || ($_SESSION['ROLE'] !== 'Admin' && $_SESSION['RO
 
 $error = "";
 
+// Get patient_id from URL parameter if available
+$selected_patient_id = isset($_GET['patient_id']) ? mysqli_real_escape_string($conn, $_GET['patient_id']) : '';
+$selected_patient_name = '';
+
+// If patient_id is provided in URL, fetch patient details
+if (!empty($selected_patient_id)) {
+    $patient_check = mysqli_query($conn, "SELECT PATIENT_ID, NAME, PHONE_NUMBER FROM patient WHERE PATIENT_ID = '$selected_patient_id'");
+    if ($patient_check && mysqli_num_rows($patient_check) > 0) {
+        $patient_data = mysqli_fetch_assoc($patient_check);
+        $selected_patient_name = $patient_data['NAME'];
+    }
+}
+
 // ==========================================
 // HANDLE EXAM SUBMISSION
 // ==========================================
@@ -56,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_exam'])) {
     }
 }
 
-$patient_query = "SELECT PATIENT_ID, NAME, IC_NUMBER FROM patient ORDER BY NAME ASC";
+$patient_query = "SELECT PATIENT_ID, NAME, PHONE_NUMBER FROM patient ORDER BY NAME ASC";
 $patient_result = mysqli_query($conn, $patient_query);
 ?>
 <!DOCTYPE html>
@@ -110,10 +123,15 @@ $patient_result = mysqli_query($conn, $patient_query);
                     <div class="w-full relative">
                         <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Select Patient *</label>
                         <i class="fa-solid fa-magnifying-glass absolute left-5 top-[2.4rem] text-slate-400"></i>
-                        <select name="patient_id" required class="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none font-bold text-slate-700 transition appearance-none">
+                        <select name="patient_id" id="patient_select" required class="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:border-[#0097B2] outline-none font-bold text-slate-700 transition appearance-none">
                             <option value="">-- Select a patient --</option>
-                            <?php while($p = mysqli_fetch_assoc($patient_result)): ?>
-                                <option value="<?php echo $p['PATIENT_ID']; ?>"><?php echo htmlspecialchars($p['NAME'] . ' (' . $p['IC_NUMBER'] . ')'); ?></option>
+                            <?php 
+                            // Reset pointer to beginning of result set
+                            mysqli_data_seek($patient_result, 0);
+                            while($p = mysqli_fetch_assoc($patient_result)): 
+                                $is_selected = ($p['PATIENT_ID'] == $selected_patient_id) ? 'selected' : '';
+                            ?>
+                                <option value="<?php echo $p['PATIENT_ID']; ?>" <?php echo $is_selected; ?>><?php echo htmlspecialchars($p['NAME'] . ' - ' . $p['PHONE_NUMBER']); ?></option>
                             <?php endwhile; ?>
                         </select>
                     </div>
@@ -209,6 +227,12 @@ $patient_result = mysqli_query($conn, $patient_query);
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
+            // Pre-select patient if it came from patient details page
+            const selectedPatientId = '<?php echo $selected_patient_id; ?>';
+            if (selectedPatientId) {
+                document.getElementById('patient_select').value = selectedPatientId;
+            }
+
             const opticalFields = document.querySelectorAll('input[name="re_sph"], input[name="re_cyl"], input[name="re_add"], input[name="le_sph"], input[name="le_cyl"], input[name="le_add"]');
 
             opticalFields.forEach(field => {

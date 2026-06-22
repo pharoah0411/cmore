@@ -1,6 +1,31 @@
 <?php 
 include('config.php'); 
 
+// Handle delete request
+if (isset($_GET['delete_id'])) {
+    $delete_id = mysqli_real_escape_string($conn, $_GET['delete_id']);
+    
+    // Delete from dependent tables first
+    $delete_exams = "DELETE FROM eye_examination WHERE PATIENT_ID = '$delete_id'";
+    $delete_appointments = "DELETE FROM appointment WHERE PATIENT_ID = '$delete_id'";
+    $delete_sales = "DELETE FROM sales WHERE PATIENT_ID = '$delete_id'";
+    
+    mysqli_query($conn, $delete_exams);
+    mysqli_query($conn, $delete_appointments);
+    mysqli_query($conn, $delete_sales);
+    
+    // Finally delete the patient
+    $delete_patient = "DELETE FROM patient WHERE PATIENT_ID = '$delete_id'";
+    
+    if (mysqli_query($conn, $delete_patient)) {
+        header("Location: patients.php?msg=deleted");
+        exit();
+    } else {
+        header("Location: patients.php?msg=delete_error");
+        exit();
+    }
+}
+
 // Function to extract Age and DOB from Malaysian IC
 function parse_malaysian_ic($ic) {
     if (empty($ic)) return ['age' => 'N/A', 'dob' => 'N/A'];
@@ -54,6 +79,15 @@ function parse_malaysian_ic($ic) {
             <div>
                 <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">Patient Management</h1>
                 <p class="text-slate-500 font-medium mt-1">Clinical overview and quick prescription access.</p>
+                <?php 
+                if (isset($_GET['msg'])) {
+                    if ($_GET['msg'] == 'deleted') {
+                        echo '<div class="mt-3 bg-green-50 border border-green-200 text-green-700 px-4 py-2 rounded-lg text-sm flex items-center"><i class="fa-solid fa-check-circle mr-2"></i>Patient deleted successfully.</div>';
+                    } elseif ($_GET['msg'] == 'delete_error') {
+                        echo '<div class="mt-3 bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg text-sm flex items-center"><i class="fa-solid fa-exclamation-circle mr-2"></i>Error deleting patient. Please try again.</div>';
+                    }
+                }
+                ?>
             </div>
             <a href="patient_add.php" class="bg-[#0097B2] text-white px-8 py-3 rounded-2xl font-bold shadow-lg hover:scale-105 transition-all duration-300">
                 <i class="fa-solid fa-user-plus mr-2"></i> Register New Patient
@@ -166,12 +200,15 @@ function parse_malaysian_ic($ic) {
 
                         <td class="p-5 text-center">
                             <div class="flex items-center justify-center space-x-1.5">
-                                <a href="patient_details.php?id=<?php echo $row['PATIENT_ID']; ?>" onclick="event.stopPropagation();" class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-600 hover:text-white transition shadow-sm">
+                                <a href="patient_details.php?id=<?php echo $row['PATIENT_ID']; ?>" onclick="event.stopPropagation();" class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-600 hover:text-white transition shadow-sm" title="View details">
                                     <i class="fa-solid fa-eye text-xs"></i>
                                 </a>
-                                <a href="patient_edit.php?id=<?php echo $row['PATIENT_ID']; ?>" onclick="event.stopPropagation();" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-[#0097B2] hover:text-white transition">
+                                <a href="patient_edit.php?id=<?php echo $row['PATIENT_ID']; ?>" onclick="event.stopPropagation();" class="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-[#0097B2] hover:text-white transition" title="Edit patient">
                                     <i class="fa-solid fa-pen-to-square text-xs"></i>
                                 </a>
+                                <button onclick="event.stopPropagation(); deletePatient('<?php echo $row['PATIENT_ID']; ?>', '<?php echo htmlspecialchars($row['NAME']); ?>')" class="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-600 hover:text-white transition" title="Delete patient">
+                                    <i class="fa-solid fa-trash-alt text-xs"></i>
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -182,5 +219,12 @@ function parse_malaysian_ic($ic) {
             </table>
         </div>
     </main>
+    <script>
+        function deletePatient(patientId, patientName) {
+            if (confirm(`Are you sure you want to delete patient "${patientName}"?\n\nThis will also delete all associated records (exams, appointments, sales history).\n\nThis action cannot be undone.`)) {
+                window.location.href = `patients.php?delete_id=${patientId}`;
+            }
+        }
+    </script>
 </body>
 </html>

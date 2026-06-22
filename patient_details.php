@@ -69,7 +69,7 @@ $ic_info = parse_malaysian_ic($patient['IC_NUMBER']);
         <header class="flex justify-between items-start mb-12">
             <div>
                 <a href="patients.php" class="text-slate-400 text-sm font-bold uppercase tracking-widest hover:text-[#0097B2] transition">
-                    <i class="fa-solid fa-arrow-left mr-2"></i> Back to Directory
+                    <i class="fa-solid fa-arrow-left mr-2"></i> Back to Patient Page
                 </a>
                 <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight mt-4"><?php echo htmlspecialchars($patient['NAME']); ?></h1>
                 <div class="flex items-center space-x-3 mt-2">
@@ -128,7 +128,11 @@ $ic_info = parse_malaysian_ic($patient['IC_NUMBER']);
                             <i class="fa-solid fa-microscope text-[#0097B2]"></i>
                             <h3 class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2]">Eye Exam Results</h3>
                         </div>
+                        <?php if($_SESSION['ROLE'] === 'Optometrist' || $_SESSION['ROLE'] === 'Admin'): ?>
                         <a href="exam_add.php?patient_id=<?php echo $id; ?>" class="text-[10px] font-black uppercase text-[#0097B2] hover:underline">Add New Exam</a>
+                        <?php else: ?>
+                        <button onclick="restrictedAccessModal()" class="text-[10px] font-black uppercase text-slate-400 hover:text-red-500 transition">Add New Exam</button>
+                        <?php endif; ?>
                     </div>
                     
                     <div class="space-y-6">
@@ -144,14 +148,24 @@ $ic_info = parse_malaysian_ic($patient['IC_NUMBER']);
                             while($exam = mysqli_fetch_assoc($exam_res)):
                         ?>
                         <div class="bg-slate-50 p-6 rounded-3xl border border-slate-100 group hover:border-[#B9D977] transition-all">
-                            <div class="flex justify-between items-start mb-4">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 pb-4 border-b border-slate-200">
                                 <div>
-                                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Exam Date</span>
-                                    <p class="font-bold text-slate-800"><?php echo date('d M Y', strtotime($exam['EXAM_DATE'])); ?></p>
+                                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Patient Name</span>
+                                    <p class="font-bold text-slate-800"><?php echo htmlspecialchars($patient['NAME']); ?></p>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phone Number</span>
+                                    <p class="font-bold text-slate-800"><?php echo htmlspecialchars($patient['PHONE_NUMBER']); ?></p>
                                 </div>
                                 <div class="text-right">
                                     <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Optometrist</span>
                                     <p class="text-sm font-bold text-[#0097B2]"><?php echo htmlspecialchars($exam['DOC_NAME']); ?></p>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Exam Date</span>
+                                    <p class="font-bold text-slate-800"><?php echo date('d M Y', strtotime($exam['EXAM_DATE'])); ?></p>
                                 </div>
                             </div>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
@@ -209,5 +223,55 @@ $ic_info = parse_malaysian_ic($patient['IC_NUMBER']);
             </div>
         </div>
     </main>
+
+    <!-- Modal for Staff Restricted Access -->
+    <div id="restrictedAccessModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 animate-bounce-in">
+            <div class="flex justify-center mb-4">
+                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                    <i class="fa-solid fa-lock text-3xl text-red-600"></i>
+                </div>
+            </div>
+            <h2 class="text-2xl font-black text-slate-900 text-center mb-2">Access Restricted</h2>
+            <p class="text-slate-600 text-center mb-6">
+                <strong>Staff members cannot add or modify clinical exam records.</strong>
+                <br><br>
+                Eye examination results can only be created and managed by <strong>Optometrists</strong>.
+            </p>
+            <p class="text-sm text-slate-500 text-center mb-6 italic">
+                Please contact an optometrist to record new examination results for this patient.
+            </p>
+            <button onclick="closeRestrictedModal()" class="w-full bg-slate-900 text-white font-bold py-3 rounded-2xl hover:bg-slate-800 transition">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function restrictedAccessModal() {
+            document.getElementById('restrictedAccessModal').classList.remove('hidden');
+        }
+
+        function closeRestrictedModal() {
+            document.getElementById('restrictedAccessModal').classList.add('hidden');
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('restrictedAccessModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeRestrictedModal();
+            }
+        });
+    </script>
+
+    <style>
+        @keyframes bounce-in {
+            0% { transform: scale(0.95); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-bounce-in {
+            animation: bounce-in 0.3s ease-out;
+        }
+    </style>
 </body>
 </html>

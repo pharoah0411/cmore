@@ -27,7 +27,7 @@ if(isset($_POST['ajax_add_patient'])) {
             
     if(mysqli_query($conn, $sql)) {
         $new_id = mysqli_insert_id($conn);
-        echo json_encode(['status' => 'success', 'id' => $new_id, 'name' => $name, 'ic' => $ic]);
+        echo json_encode(['status' => 'success', 'id' => $new_id, 'name' => $name, 'phone' => $phone]);
     } else {
         echo json_encode(['status' => 'error', 'message' => mysqli_error($conn)]);
     }
@@ -36,7 +36,6 @@ if(isset($_POST['ajax_add_patient'])) {
 // ==========================================
 
 if(isset($_POST['process_sale'])) {
-    
     $patient_id_raw = mysqli_real_escape_string($conn, $_POST['patient_id']);
     // Handle empty or walk-in patient selection as NULL for walk-in customers
     $patient_id = (!empty($patient_id_raw) && $patient_id_raw !== 'walkin') ? "'$patient_id_raw'" : "NULL"; 
@@ -57,33 +56,55 @@ if(isset($_POST['process_sale'])) {
 
     $sale_date = date('Y-m-d H:i:s');
 
-    $insert_sale = "INSERT INTO SALES (PATIENT_ID, STAFF_ID, SALE_DATE, TOTAL_AMOUNT, PAID_AMOUNT, PAYMENT_METHOD, PAYMENT_STATUS) 
-                    VALUES ($patient_id, '$staff_id', '$sale_date', '$total_amount', '$paid_amount', '$payment_method', '$payment_status')";
-    
-    if(mysqli_query($conn, $insert_sale)) {
-        $sale_id = mysqli_insert_id($conn);
+    // Retrieve products and quantities from POST for server-side validation
+    $product_ids = isset($_POST['product_id']) ? $_POST['product_id'] : [];
+    $quantities = isset($_POST['quantity']) ? $_POST['quantity'] : [];
 
-        $product_ids = $_POST['product_id'];
-        $quantities = $_POST['quantity'];
-        
-        for($i = 0; $i < count($product_ids); $i++) {
-            $pid = mysqli_real_escape_string($conn, $product_ids[$i]);
-            $qty = mysqli_real_escape_string($conn, $quantities[$i]);
+    $invalid_items = [];
+    for($i = 0; $i < count($product_ids); $i++) {
+        $pid = mysqli_real_escape_string($conn, $product_ids[$i]);
+        $qty = intval($quantities[$i]);
+        if(empty($pid) || $qty <= 0) continue;
 
-            if(!empty($pid) && $qty > 0) {
-                mysqli_query($conn, "INSERT INTO SALES_ITEM (SALE_ID, PRODUCT_ID, QUANTITY) VALUES ('$sale_id', '$pid', '$qty')");
-                mysqli_query($conn, "UPDATE PRODUCT SET STOCK_QUANTITY = STOCK_QUANTITY - $qty WHERE PRODUCT_ID = '$pid'");
-            }
+        $prod_check = mysqli_query($conn, "SELECT STOCK_QUANTITY, BRAND_NAME FROM PRODUCT WHERE PRODUCT_ID = '$pid'");
+        $prod_row = mysqli_fetch_assoc($prod_check);
+        $available = $prod_row ? intval($prod_row['STOCK_QUANTITY']) : 0;
+        $brand = $prod_row ? $prod_row['BRAND_NAME'] : ('ID ' . $pid);
+        if ($qty > $available) {
+            $invalid_items[] = "$brand: requested $qty, available $available";
         }
-        header("Location: sales.php?new_sale_id=$sale_id");
-        exit();
+    }
+
+    if (!empty($invalid_items)) {
+        // Do not create the sale; show an error on the page
+        $page_error = 'Insufficient stock for: ' . implode('; ', $invalid_items);
     } else {
-        // CATCH AND DISPLAY THE ERROR IF SALE FAILS
-        $page_error = mysqli_error($conn);
+        // Proceed to insert sale
+        $insert_sale = "INSERT INTO SALES (PATIENT_ID, STAFF_ID, SALE_DATE, TOTAL_AMOUNT, PAID_AMOUNT, PAYMENT_METHOD, PAYMENT_STATUS) 
+                        VALUES ($patient_id, '$staff_id', '$sale_date', '$total_amount', '$paid_amount', '$payment_method', '$payment_status')";
+        
+        if(mysqli_query($conn, $insert_sale)) {
+            $sale_id = mysqli_insert_id($conn);
+
+            for($i = 0; $i < count($product_ids); $i++) {
+                $pid = mysqli_real_escape_string($conn, $product_ids[$i]);
+                $qty = intval($quantities[$i]);
+
+                if(!empty($pid) && $qty > 0) {
+                    mysqli_query($conn, "INSERT INTO SALES_ITEM (SALE_ID, PRODUCT_ID, QUANTITY) VALUES ('$sale_id', '$pid', '$qty')");
+                    mysqli_query($conn, "UPDATE PRODUCT SET STOCK_QUANTITY = STOCK_QUANTITY - $qty WHERE PRODUCT_ID = '$pid'");
+                }
+            }
+            header("Location: sales.php?new_sale_id=$sale_id");
+            exit();
+        } else {
+            // CATCH AND DISPLAY THE ERROR IF SALE FAILS
+            $page_error = mysqli_error($conn);
+        }
     }
 }
 
-$products_html = '<option value="" data-price="0" data-min="0">-- Choose Product --</option>';
+$products_html = '<option value="" data-price="0" data-min="0" data-stock="0">-- Choose Product --</option>';
 $prod_res = mysqli_query($conn, "SELECT * FROM PRODUCT WHERE STOCK_QUANTITY > 0 ORDER BY BRAND_NAME ASC");
 while($prod = mysqli_fetch_assoc($prod_res)) {
     $min = isset($prod['MINIMUM_PRICE']) ? $prod['MINIMUM_PRICE'] : 0;
@@ -91,7 +112,8 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
     if(!empty($prod['EXPIRY_DATE'])) {
         $expiry_text = " [Exp: " . date('M y', strtotime($prod['EXPIRY_DATE'])) . "]";
     }
-    $products_html .= "<option value='{$prod['PRODUCT_ID']}' data-price='{$prod['UNIT_PRICE']}' data-min='{$min}'>{$prod['BRAND_NAME']}{$expiry_text} ({$prod['CATEGORY']}) - RM {$prod['UNIT_PRICE']}</option>";
+    $stock_attr = isset($prod['STOCK_QUANTITY']) ? intval($prod['STOCK_QUANTITY']) : 0;
+    $products_html .= "<option value='{$prod['PRODUCT_ID']}' data-price='{$prod['UNIT_PRICE']}' data-min='{$min}' data-stock='{$stock_attr}'>{$prod['BRAND_NAME']}{$expiry_text} ({$prod['CATEGORY']}) - RM {$prod['UNIT_PRICE']}</option>";
 }
 ?>
 <!DOCTYPE html>
@@ -165,11 +187,11 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
                             <option value=""></option>
                             <option value="walkin">-- Walk-in / No Patient Selected --</option>
                             <?php 
-                            $p_res = mysqli_query($conn, "SELECT PATIENT_ID, NAME, IC_NUMBER FROM PATIENT ORDER BY NAME ASC");
+                            $p_res = mysqli_query($conn, "SELECT PATIENT_ID, NAME, PHONE_NUMBER FROM PATIENT ORDER BY NAME ASC");
                             while($p = mysqli_fetch_assoc($p_res)) {
-                                // Hide the random NO-IC placeholder in the dropdown
-                                $display_ic = (!empty($p['IC_NUMBER']) && strpos($p['IC_NUMBER'], 'NO-IC') === false) ? " - " . $p['IC_NUMBER'] : "";
-                                echo "<option value='{$p['PATIENT_ID']}'>{$p['NAME']}{$display_ic}</option>";
+                                // Display patient name and phone number
+                                $display_phone = (!empty($p['PHONE_NUMBER'])) ? " - " . $p['PHONE_NUMBER'] : "";
+                                echo "<option value='{$p['PATIENT_ID']}'>{$p['NAME']}{$display_phone}</option>";
                             }
                             ?>
                         </select>
@@ -311,14 +333,30 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
 
     <script>
         $(document).ready(function() {
-            $('.searchable-select').each(function() {
-                $(this).select2({
+            // helper to format product option with stock
+            window.formatProduct = function(state) {
+                if (!state.id) return state.text;
+                var $state = $(state.element);
+                var stock = $state.data('stock');
+                var text = state.text + (typeof stock !== 'undefined' ? ' (Available: ' + stock + ')' : '');
+                return $('<span>' + text + '</span>');
+            }
+
+            window.initSelect2 = function($el) {
+                var placeholder = $el.data('placeholder') || 'Search...';
+                var dropdownParent = $el.closest('form').length ? $el.closest('form') : $('body');
+                $el.select2({
                     width: '100%',
-                    placeholder: $(this).data('placeholder') || 'Search...',
+                    placeholder: placeholder,
                     allowClear: true,
-                    dropdownParent: $(this).closest('form').length ? $(this).closest('form') : $('body')
+                    dropdownParent: dropdownParent,
+                    templateResult: window.formatProduct,
+                    templateSelection: window.formatProduct,
+                    escapeMarkup: function(m) { return m; }
                 });
-            });
+            }
+
+            $('.searchable-select').each(function() { initSelect2($(this)); });
         });
 
         function openPatientModal() {
@@ -342,7 +380,7 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
                 dataType: 'json',
                 success: function(response) {
                     if(response.status === 'success') {
-                        let optionText = response.name + (response.ic ? ' - ' + response.ic : '');
+                        let optionText = response.name + (response.phone ? ' - ' + response.phone : '');
                         let newOption = new Option(optionText, response.id, true, true);
                         $('#patient_select').append(newOption).trigger('change');
                         closePatientModal();
@@ -363,9 +401,10 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
         const rowTemplate = `
             <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                 <div class="md:col-span-6 space-y-2">
-                    <select name="product_id[]" required onchange="updateRowPrice(this)" class="product-select searchable-select w-full p-4 bg-white border border-slate-100 rounded-xl focus:border-[#0097B2] outline-none font-bold text-sm">
+                    <select name="product_id[]" required onchange="updateRowPrice(this)" class="product-select searchable-select w-full p-4 bg-white border border-slate-100 rounded-xl focus:border-[#0097B2] outline-none font-bold text-sm" data-placeholder="Search product...">
                         <?php echo addslashes($products_html); ?>
                     </select>
+                    <div class="text-xs text-slate-500 mt-1 stock-info">Available: -</div>
                 </div>
                 <div class="md:col-span-2 space-y-2">
                     <input type="number" name="quantity[]" value="1" min="1" required oninput="calculateGrandTotal()" class="qty-input w-full p-4 bg-white border border-slate-100 rounded-xl outline-none text-center font-bold text-sm">
@@ -391,7 +430,8 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
             newRow.className = 'item-row relative bg-slate-50 p-6 rounded-2xl border border-slate-100 mt-4';
             newRow.innerHTML = rowTemplate;
             container.appendChild(newRow);
-            $(newRow).find('.searchable-select').select2();
+            // Initialize select2 on the newly added select with stock formatting
+            initSelect2($(newRow).find('.searchable-select'));
         }
 
         function removeReceiptItem(btnElement) {
@@ -404,10 +444,27 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
         function updateRowPrice(selectElement) {
             const row = selectElement.closest('.item-row');
             const priceInput = row.querySelector('.custom-price-input');
+            const qtyInput = row.querySelector('.qty-input');
             const selectedOption = selectElement.options[selectElement.selectedIndex];
             const defaultPrice = selectedOption.getAttribute('data-price');
-            
+            const stock = parseInt(selectedOption.getAttribute('data-stock')) || 0;
+
             priceInput.value = (defaultPrice > 0) ? parseFloat(defaultPrice).toFixed(2) : '';
+
+            // Enforce quantity maximum according to stock
+            if (stock >= 0) {
+                qtyInput.max = stock;
+                if (parseInt(qtyInput.value) > stock) {
+                    qtyInput.value = stock;
+                }
+            } else {
+                qtyInput.removeAttribute('max');
+            }
+
+            // Update visible stock info in the row
+            const stockInfo = row.querySelector('.stock-info');
+            if (stockInfo) stockInfo.innerText = 'Available: ' + stock;
+
             checkRowThreshold(priceInput);
             calculateGrandTotal();
         }
@@ -469,6 +526,41 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
                 statusDropdown.classList.replace('text-orange-400', 'text-slate-300'); 
             }
         }
+
+        // Clamp quantity inputs to available stock on-the-fly
+        $(document).on('input', '.qty-input', function() {
+            const qtyInput = this;
+            const row = qtyInput.closest('.item-row');
+            if(!row) return;
+            const select = row.querySelector('.product-select');
+            if(!select) return;
+            const selectedOption = select.options[select.selectedIndex];
+            const stock = parseInt(selectedOption?.getAttribute('data-stock')) || 0;
+            let val = parseInt(qtyInput.value) || 0;
+            if (stock >= 0 && val > stock) {
+                qtyInput.value = stock;
+                qtyInput.classList.add('border-red-400');
+                setTimeout(() => qtyInput.classList.remove('border-red-400'), 1000);
+            }
+            calculateGrandTotal();
+        });
+
+        // Validate all rows before submitting the form
+        document.getElementById('mainSaleForm').addEventListener('submit', function(e) {
+            const rows = document.querySelectorAll('.item-row');
+            for (const row of rows) {
+                const select = row.querySelector('.product-select');
+                const selectedOption = select.options[select.selectedIndex];
+                const stock = parseInt(selectedOption?.getAttribute('data-stock')) || 0;
+                const qty = parseInt(row.querySelector('.qty-input').value) || 0;
+                if (qty > stock) {
+                    alert('Quantity for "' + (selectedOption?.text || 'product') + '" exceeds available stock (' + stock + '). Please adjust quantities.');
+                    e.preventDefault();
+                    return false;
+                }
+            }
+            return true;
+        });
     </script>
 </body>
 </html>

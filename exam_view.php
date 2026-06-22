@@ -53,8 +53,8 @@ $exam = mysqli_fetch_assoc($result);
             </div>
             
             <div class="flex space-x-3">
-                <button onclick="window.print()" class="px-5 py-3 bg-white text-slate-600 font-bold rounded-xl border border-slate-200 hover:bg-slate-50 transition shadow-sm flex items-center">
-                    <i class="fa-solid fa-print mr-2"></i> Print
+                <button onclick="printPrescription()" class="px-5 py-3 bg-white text-slate-600 font-bold rounded-xl border border-slate-200 hover:bg-slate-50 transition shadow-sm flex items-center">
+                    <i class="fa-solid fa-print mr-2"></i> Print Prescription
                 </button>
                 <a href="exam_edit.php?id=<?php echo $exam['EXAM_ID']; ?>" class="px-5 py-3 bg-[#0097B2] text-white font-bold rounded-xl shadow-lg shadow-teal-100 hover:scale-105 transition flex items-center">
                     <i class="fa-solid fa-pen-to-square mr-2"></i> Edit Record
@@ -159,5 +159,125 @@ $exam = mysqli_fetch_assoc($result);
 
         </div>
     </main>
+
+    <!-- Hidden Prescription Print Template -->
+    <div id="prescriptionPrintTemplate" class="hidden">
+        <div style="font-family: Arial, sans-serif; padding: 40px; max-width: 600px; margin: 0 auto;">
+            <!-- Header -->
+            <div style="text-align: center; border-bottom: 2px solid #0097B2; padding-bottom: 20px; margin-bottom: 30px;">
+                <h1 style="margin: 0; color: #0097B2; font-size: 28px;">C-More Optometry</h1>
+                <p style="margin: 5px 0; color: #666; font-size: 14px;">Optical Prescription</p>
+            </div>
+
+            <!-- Patient Information -->
+            <div style="margin-bottom: 30px;">
+                <h3 style="margin: 0 0 10px 0; color: #333; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Patient Information</h3>
+                <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 8px 0; width: 30%; font-weight: bold;">Name:</td>
+                        <td style="padding: 8px 0;"><?php echo htmlspecialchars($exam['PATIENT_NAME']); ?></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">IC Number:</td>
+                        <td style="padding: 8px 0;"><?php echo htmlspecialchars($exam['IC_NUMBER']); ?></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">Phone:</td>
+                        <td style="padding: 8px 0;"><?php echo htmlspecialchars($exam['PHONE_NUMBER'] ?? 'N/A'); ?></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">Exam Date:</td>
+                        <td style="padding: 8px 0;"><?php echo date('d F Y', strtotime($exam['EXAM_DATE'])); ?></td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- Refraction Prescription -->
+            <div style="margin-bottom: 30px;">
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Refraction Prescription</h3>
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                    <thead>
+                        <tr style="background-color: #f5f5f5; border-bottom: 2px solid #0097B2;">
+                            <th style="padding: 10px; text-align: left; font-weight: bold;">Eye</th>
+                            <th style="padding: 10px; text-align: center; font-weight: bold;">Sphere (SPH)</th>
+                            <th style="padding: 10px; text-align: center; font-weight: bold;">Cylinder (CYL)</th>
+                            <th style="padding: 10px; text-align: center; font-weight: bold;">Axis</th>
+                            <th style="padding: 10px; text-align: center; font-weight: bold;">ADD</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <td style="padding: 12px; font-weight: bold; color: #0097B2;">Right Eye (OD)</td>
+                            <td style="padding: 12px; text-align: center;"><?php echo htmlspecialchars($exam['RE_SPH'] ?: '-'); ?></td>
+                            <td style="padding: 12px; text-align: center;"><?php echo htmlspecialchars($exam['RE_CYL'] ?: '-'); ?></td>
+                            <td style="padding: 12px; text-align: center;"><?php echo htmlspecialchars($exam['RE_AXIS'] ?: '-'); ?></td>
+                            <td style="padding: 12px; text-align: center;"><?php echo htmlspecialchars($exam['RE_ADD'] ?: '-'); ?></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; font-weight: bold; color: #8db33e;">Left Eye (OS)</td>
+                            <td style="padding: 12px; text-align: center;"><?php echo htmlspecialchars($exam['LE_SPH'] ?: '-'); ?></td>
+                            <td style="padding: 12px; text-align: center;"><?php echo htmlspecialchars($exam['LE_CYL'] ?: '-'); ?></td>
+                            <td style="padding: 12px; text-align: center;"><?php echo htmlspecialchars($exam['LE_AXIS'] ?: '-'); ?></td>
+                            <td style="padding: 12px; text-align: center;"><?php echo htmlspecialchars($exam['LE_ADD'] ?: '-'); ?></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Additional Information -->
+            <div style="margin-bottom: 30px;">
+                <h3 style="margin: 0 0 10px 0; color: #333; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Assessment Details</h3>
+                <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 8px 0; width: 30%; font-weight: bold;">Diagnosis:</td>
+                        <td style="padding: 8px 0;"><?php echo htmlspecialchars($exam['PRESCRIPTION_RESULT'] ?? 'None'); ?></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">Visual Acuity:</td>
+                        <td style="padding: 8px 0;"><?php echo htmlspecialchars($exam['VISUAL_ACUITY_RESULTS'] ?: 'N/A'); ?></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">PD:</td>
+                        <td style="padding: 8px 0;"><?php echo htmlspecialchars($exam['PD'] ?: 'N/A'); ?></td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- Clinical Notes -->
+            <?php if (!empty($exam['CLINICAL_NOTES'])): ?>
+            <div style="margin-bottom: 30px;">
+                <h3 style="margin: 0 0 10px 0; color: #333; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Clinical Notes</h3>
+                <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #555; white-space: pre-wrap;"><?php echo htmlspecialchars($exam['CLINICAL_NOTES']); ?></p>
+            </div>
+            <?php endif; ?>
+
+            <!-- Footer -->
+            <div style="margin-top: 40px; border-top: 1px solid #ccc; padding-top: 20px; text-align: center;">
+                <p style="margin: 0; color: #666; font-size: 12px;">
+                    <strong>Optometrist:</strong> <?php echo htmlspecialchars($exam['OPTOMETRIST_NAME']); ?><br>
+                    <strong>Date:</strong> <?php echo date('d F Y', strtotime($exam['EXAM_DATE'])); ?>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function printPrescription() {
+            // Get the prescription template
+            const prescriptionElement = document.getElementById('prescriptionPrintTemplate');
+            const prescriptionContent = prescriptionElement.innerHTML;
+            
+            // Create a new window for printing
+            const printWindow = window.open('', '', 'height=600,width=800');
+            printWindow.document.write(prescriptionContent);
+            printWindow.document.close();
+            
+            // Wait for content to load before printing
+            setTimeout(() => {
+                printWindow.print();
+                printWindow.close();
+            }, 250);
+        }
+    </script>
 </body>
 </html>

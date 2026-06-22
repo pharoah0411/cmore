@@ -34,13 +34,14 @@ if ($export === 'pdf' || $export === 'excel') {
     <?php include('sidebar.php'); ?>
 
     <main class="flex-1 ml-72 p-12">
+        <div id="reportContent">
         <header class="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 mb-10">
             <div>
                 <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">Stock Valuation</h1>
                 <p class="text-slate-500 font-medium mt-2">Review current inventory worth and track low-stock assets.</p>
             </div>
             <div class="flex flex-wrap gap-3">
-                <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 text-slate-700 font-bold shadow-sm hover:bg-slate-50 transition">
+                <button type="button" onclick="printReport()" class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 text-slate-700 font-bold shadow-sm hover:bg-slate-50 transition">
                     <i class="fa-solid fa-print"></i> Print Report
                 </button>
                 <a href="?export=pdf" class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-[#0097B2] px-6 py-3 text-white font-bold shadow-sm hover:bg-teal-600 transition">
@@ -55,12 +56,22 @@ if ($export === 'pdf' || $export === 'excel') {
             </div>
         </header>
 
+        <section id="reportContent" class="rounded-[2.5rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden">
+
         <?php
         $stock_totals = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COALESCE(SUM(STOCK_QUANTITY),0) AS total_items, COALESCE(SUM(STOCK_QUANTITY * UNIT_PRICE),0) AS valuation FROM PRODUCT"));
         $category_totals = mysqli_query($conn, "SELECT CATEGORY, COALESCE(SUM(STOCK_QUANTITY),0) AS qty, COALESCE(SUM(STOCK_QUANTITY * UNIT_PRICE),0) AS value FROM PRODUCT GROUP BY CATEGORY ORDER BY value DESC LIMIT 7");
         $low_stock = mysqli_query($conn, "SELECT BRAND_NAME, CATEGORY, STOCK_QUANTITY, UNIT_PRICE FROM PRODUCT WHERE STOCK_QUANTITY <= 5 ORDER BY STOCK_QUANTITY ASC, BRAND_NAME ASC LIMIT 8");
 
         ?>
+
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <p class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2]">Stock Valuation</p>
+                <h2 class="text-2xl font-bold text-slate-900 mt-2">Inventory Breakdown</h2>
+            </div>
+            <span class="text-sm text-slate-500">Current inventory snapshot</span>
+        </div>
 
         <div class="grid gap-6 xl:grid-cols-3 mb-10">
             <div class="rounded-[2rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40">
@@ -138,6 +149,24 @@ if ($export === 'pdf' || $export === 'excel') {
                 <?php endif; ?>
             </section>
         </div>
+        </section>
     </main>
+    
+    <script>
+        function buildPrintableHTML(contentHtml) {
+            const head = document.head.innerHTML;
+            return `<!doctype html><html>${head}<body style="margin:0;padding:20px;background:#f8fafc;font-family: 'Plus Jakarta Sans', sans-serif;">${contentHtml}</body></html>`;
+        }
+
+        function printReport() {
+            const reportEl = document.getElementById('reportContent');
+            if (!reportEl) return window.print();
+            const printWindow = window.open('', '', 'height=800,width=1000');
+            const content = reportEl.outerHTML;
+            printWindow.document.write(buildPrintableHTML(content));
+            printWindow.document.close();
+            setTimeout(() => { printWindow.focus(); printWindow.print(); }, 300);
+        }
+    </script>
 </body>
 </html>

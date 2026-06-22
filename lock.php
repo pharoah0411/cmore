@@ -24,9 +24,22 @@ if(isset($_POST['unlock'])) {
     
     if($row = mysqli_fetch_assoc($res)) {
         if($passcode === $row['PASSWORD']) {
-            // Success! Remove lock and redirect back to the system
+            // Success! Remove lock and redirect back to the last page
             unset($_SESSION['is_locked']);
-            header("Location: directory.php"); 
+            
+            // Get the last page from session, default to directory
+            $redirect_page = 'directory.php'; // Default safe page
+            if (isset($_SESSION['last_page']) && !empty($_SESSION['last_page'])) {
+                // Sanitize the redirect URL to prevent open redirect attacks
+                $last_page = $_SESSION['last_page'];
+                // Only allow redirects to PHP files in the root directory
+                if (preg_match('/^[a-zA-Z0-9_\\-\\.]+\\.php(\\?[a-zA-Z0-9_=&\\-]+)?$/', $last_page)) {
+                    $redirect_page = $last_page;
+                }
+            }
+            unset($_SESSION['last_page']); // Clear it after use
+            
+            header("Location: $redirect_page"); 
             exit();
         } else {
             $error = "Incorrect passcode. Please try again.";

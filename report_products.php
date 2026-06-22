@@ -35,13 +35,14 @@ if ($export === 'pdf' || $export === 'excel') {
     <?php include('sidebar.php'); ?>
 
     <main class="flex-1 ml-72 p-12">
+        <div id="reportContent">
         <header class="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 mb-10">
             <div>
                 <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">Top Selling Products</h1>
                 <p class="text-slate-500 font-medium mt-2">Identify high-demand optics and maximize your bestseller stock.</p>
             </div>
             <div class="flex flex-wrap gap-3">
-                <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 text-slate-700 font-bold shadow-sm hover:bg-slate-50 transition">
+                <button type="button" onclick="printReport()" class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 text-slate-700 font-bold shadow-sm hover:bg-slate-50 transition">
                     <i class="fa-solid fa-print"></i> Print Report
                 </button>
                 <a href="?export=pdf" class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-[#0097B2] px-6 py-3 text-white font-bold shadow-sm hover:bg-teal-600 transition">
@@ -56,6 +57,8 @@ if ($export === 'pdf' || $export === 'excel') {
             </div>
         </header>
 
+        <section id="reportContent" class="rounded-[2.5rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40 overflow-hidden">
+
         <?php
         $top_products = mysqli_query($conn, "SELECT p.PRODUCT_ID, p.BRAND_NAME, p.CATEGORY, COALESCE(SUM(si.QUANTITY),0) AS qty_sold, COALESCE(SUM(si.QUANTITY * p.UNIT_PRICE),0) AS revenue FROM SALES_ITEM si JOIN PRODUCT p ON si.PRODUCT_ID = p.PRODUCT_ID GROUP BY p.PRODUCT_ID, p.BRAND_NAME, p.CATEGORY ORDER BY qty_sold DESC LIMIT 10");
         $product_count = mysqli_num_rows($top_products);
@@ -63,6 +66,14 @@ if ($export === 'pdf' || $export === 'excel') {
         $top_brand = mysqli_fetch_assoc(mysqli_query($conn, "SELECT p.BRAND_NAME, SUM(si.QUANTITY) AS units FROM SALES_ITEM si JOIN PRODUCT p ON si.PRODUCT_ID = p.PRODUCT_ID GROUP BY p.PRODUCT_ID, p.BRAND_NAME ORDER BY units DESC LIMIT 1"));
 
         ?>
+
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <p class="text-xs font-black uppercase tracking-[0.2em] text-[#a3e635]">Top Selling Products</p>
+                <h2 class="text-2xl font-bold text-slate-900 mt-2">Best-Selling Stock</h2>
+            </div>
+            <span class="text-sm text-slate-500">Top 10 products by quantity</span>
+        </div>
 
         <div class="grid gap-6 xl:grid-cols-3 mb-10">
             <div class="rounded-[2rem] bg-white p-8 border border-slate-100 shadow-xl shadow-slate-200/40">
@@ -118,6 +129,25 @@ if ($export === 'pdf' || $export === 'excel') {
                 <p class="text-sm text-slate-500">No sales items were found for this report.</p>
             <?php endif; ?>
         </section>
+        </div>
+        </section>
     </main>
+    
+    <script>
+        function buildPrintableHTML(contentHtml) {
+            const head = document.head.innerHTML;
+            return `<!doctype html><html>${head}<body style="margin:0;padding:20px;background:#f8fafc;font-family: 'Plus Jakarta Sans', sans-serif;">${contentHtml}</body></html>`;
+        }
+
+        function printReport() {
+            const reportEl = document.getElementById('reportContent');
+            if (!reportEl) return window.print();
+            const printWindow = window.open('', '', 'height=800,width=1000');
+            const content = reportEl.outerHTML;
+            printWindow.document.write(buildPrintableHTML(content));
+            printWindow.document.close();
+            setTimeout(() => { printWindow.focus(); printWindow.print(); }, 300);
+        }
+    </script>
 </body>
 </html>
