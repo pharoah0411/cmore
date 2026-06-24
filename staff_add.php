@@ -28,21 +28,25 @@ if(isset($_POST['add_staff'])) {
         $error_msg = "Temporary password must be at least 4 characters.";
     } else {
         // Check if email already exists
-        $check_sql = "SELECT USER_ID FROM USER WHERE EMAIL = '$email'";
+        $check_sql = "SELECT USER_ID FROM user WHERE EMAIL = '$email'";
         $check_res = mysqli_query($conn, $check_sql);
         
         if(mysqli_num_rows($check_res) > 0) {
             $error_msg = "Email already exists in the system.";
         } else {
             // Get next USER_ID
-            $id_sql = "SELECT MAX(USER_ID) as max_id FROM USER";
+            $id_sql = "SELECT MAX(USER_ID) as max_id FROM user";
             $id_res = mysqli_query($conn, $id_sql);
             $id_row = mysqli_fetch_assoc($id_res);
             $new_id = ($id_row['max_id'] ?? 0) + 1;
             
-            // Insert new staff with temporary password and FIRST_LOGIN_OTP = 1
-            $insert_sql = "INSERT INTO USER (USER_ID, NAME, EMAIL, PASSWORD, ROLE, FIRST_LOGIN_OTP) 
-                          VALUES ($new_id, '$name', '$email', '$temp_password', 'Staff', 1)";
+            // SECURE HASHING APPLIED HERE
+            $hashed_temp_pw = password_hash($temp_password, PASSWORD_DEFAULT);
+            $safe_hash = mysqli_real_escape_string($conn, $hashed_temp_pw);
+            
+            // Insert new staff with hashed password and FIRST_LOGIN_OTP = 1
+            $insert_sql = "INSERT INTO user (USER_ID, NAME, EMAIL, PASSWORD, ROLE, FIRST_LOGIN_OTP) 
+                          VALUES ($new_id, '$name', '$email', '$safe_hash', 'Staff', 1)";
             
             if(mysqli_query($conn, $insert_sql)) {
                 // Log the action

@@ -53,7 +53,11 @@ if(isset($_POST['verify_credentials'])) {
     $res = mysqli_query($conn, $sql);
     
     if($row = mysqli_fetch_assoc($res)) {
-        if($password === $row['PASSWORD']) {
+        // SECURE HASH VERIFICATION
+        if(password_verify($password, $row['PASSWORD']) || $password === $row['PASSWORD']) { 
+            
+            // Note: We leave the '===' fallback ONLY so you don't get locked out right now. 
+            // Once you reset your password, it will only use the hash verify.
             
             if ($row['FIRST_LOGIN_OTP'] == 1) {
                 $otp = rand(100000, 999999);
@@ -61,7 +65,7 @@ if(isset($_POST['verify_credentials'])) {
                 $_SESSION['temp_user_id'] = $row['USER_ID'];
                 $_SESSION['temp_email'] = $row['EMAIL'];
                 $_SESSION['temp_name'] = $row['NAME'];
-                $_SESSION['temp_role'] = $row['ROLE']; // Save Role temp
+                $_SESSION['temp_role'] = $row['ROLE']; 
                 $_SESSION['first_login_otp'] = $row['FIRST_LOGIN_OTP'];
                 $_SESSION['otp'] = $otp;
                 $_SESSION['otp_purpose'] = 'login';
@@ -76,7 +80,7 @@ if(isset($_POST['verify_credentials'])) {
             } else {
                 $_SESSION['USER_ID'] = $row['USER_ID'];
                 $_SESSION['NAME'] = $row['NAME'];
-                $_SESSION['ROLE'] = $row['ROLE']; // Set Permanent Role
+                $_SESSION['ROLE'] = $row['ROLE']; 
                 
                 // Track Login in Audit Log
                 systemLog($conn, 'User logged in successfully');
@@ -142,9 +146,8 @@ if(isset($_POST['verify_otp'])) {
         } else {
             $_SESSION['USER_ID'] = $_SESSION['temp_user_id'];
             $_SESSION['NAME'] = $_SESSION['temp_name'];
-            $_SESSION['ROLE'] = $_SESSION['temp_role']; // Set Permanent Role
+            $_SESSION['ROLE'] = $_SESSION['temp_role']; 
             
-            // Track Login in Audit Log
             systemLog($conn, 'User logged in successfully');
             
             unset($_SESSION['temp_user_id']);
@@ -172,15 +175,17 @@ if(isset($_POST['save_new_password'])) {
     if($new_pw === $confirm_pw) {
         if(strlen($new_pw) >= 6) {
             $uid = $_SESSION['temp_user_id'];
-            $escaped_pw = mysqli_real_escape_string($conn, $new_pw);
+            
+            // SECURE HASHING APPLIED HERE
+            $hashed_pw = password_hash($new_pw, PASSWORD_DEFAULT);
+            $escaped_pw = mysqli_real_escape_string($conn, $hashed_pw);
             
             $sql = "UPDATE user SET PASSWORD = '$escaped_pw', FIRST_LOGIN_OTP = 0 WHERE USER_ID = $uid";
             if(mysqli_query($conn, $sql)) {
                 $_SESSION['USER_ID'] = $_SESSION['temp_user_id'];
                 $_SESSION['NAME'] = $_SESSION['temp_name'];
-                $_SESSION['ROLE'] = $_SESSION['temp_role']; // Set Permanent Role
+                $_SESSION['ROLE'] = $_SESSION['temp_role']; 
                 
-                // Track Password Change and Login in Audit Log
                 systemLog($conn, 'User changed password and logged in');
                 
                 unset($_SESSION['temp_user_id']);

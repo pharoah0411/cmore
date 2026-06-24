@@ -23,7 +23,8 @@ if(isset($_POST['unlock'])) {
     $res = mysqli_query($conn, $sql);
     
     if($row = mysqli_fetch_assoc($res)) {
-        if($passcode === $row['PASSWORD']) {
+        // SECURE HASH VERIFICATION
+        if(password_verify($passcode, $row['PASSWORD']) || $passcode === $row['PASSWORD']) {
             // Success! Remove lock and redirect back to the last page
             unset($_SESSION['is_locked']);
             
@@ -78,7 +79,7 @@ if(isset($_GET['action']) && $_GET['action'] == 'logout') {
             
             <h3 class="text-2xl font-black text-slate-900 tracking-tight">Session Locked</h3>
             <p class="text-slate-500 font-medium mt-1 text-sm">
-                Hi <span class="font-bold text-slate-800"><?php echo $_SESSION['NAME']; ?></span>, your session was locked due to inactivity.
+                Hi <span class="font-bold text-slate-800"><?php echo htmlspecialchars($_SESSION['NAME']); ?></span>, your session was locked due to inactivity.
             </p>
 
             <?php if($error): ?>

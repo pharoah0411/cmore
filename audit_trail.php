@@ -13,14 +13,39 @@ if (!isset($_SESSION['ROLE']) || $_SESSION['ROLE'] !== 'Admin') {
 }
 
 // ==========================================
+// SEARCH & FILTER LOGIC
+// ==========================================
+$search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['search']) : '';
+$filter = isset($_GET['filter']) ? mysqli_real_escape_string($conn, $_GET['filter']) : '';
+
+$where_clauses = [];
+
+// If user typed in the search bar (searches name or action)
+if (!empty($search)) {
+    $where_clauses[] = "(u.NAME LIKE '%$search%' OR a.ACTION LIKE '%$search%')";
+}
+
+// If user selected a specific table filter
+if (!empty($filter)) {
+    $where_clauses[] = "a.TABLE_NAME = '$filter'";
+}
+
+$where_sql = count($where_clauses) > 0 ? "WHERE " . implode(" AND ", $where_clauses) : "";
+
+// Fetch distinct tables for the filter dropdown
+$tables_query = "SELECT DISTINCT TABLE_NAME FROM audit_log WHERE TABLE_NAME IS NOT NULL AND TABLE_NAME != '' ORDER BY TABLE_NAME ASC";
+$tables_result = mysqli_query($conn, $tables_query);
+
+// ==========================================
 // FETCH AUDIT LOGS
 // ==========================================
 // Join with the user table to get the staff member's actual name
 $query = "SELECT a.*, u.NAME 
           FROM audit_log a 
           LEFT JOIN user u ON a.USER_ID = u.USER_ID 
+          $where_sql
           ORDER BY a.CREATED_AT DESC 
-          LIMIT 200"; // Fetch the latest 200 actions
+          LIMIT 200"; // Fetch the latest 200 actions matching criteria
 $result = mysqli_query($conn, $query);
 ?>
 <!DOCTYPE html>
@@ -41,7 +66,7 @@ $result = mysqli_query($conn, $query);
     <!-- Main Content Area -->
     <main class="flex-1 ml-72 h-screen overflow-y-auto p-10">
         
-        <div class="mb-10 flex justify-between items-end">
+        <div class="mb-8 flex justify-between items-end">
             <div>
                 <h1 class="text-3xl font-black tracking-tight text-slate-900">System Audit Trail</h1>
                 <p class="text-slate-500 font-medium mt-1">Monitor staff actions and system changes in real-time.</p>
@@ -57,6 +82,42 @@ $result = mysqli_query($conn, $query);
                     <p class="text-sm font-bold text-slate-800">Admin Only Access</p>
                 </div>
             </div>
+        </div>
+
+        <!-- Search & Filter Form -->
+        <div class="mb-8">
+            <form action="" method="GET" class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 max-w-4xl">
+                <!-- Dropdown Filter -->
+                <div class="relative w-full md:w-1/3">
+                    <select name="filter" class="w-full pl-6 pr-10 py-4 bg-white border border-slate-100 rounded-[1.5rem] shadow-sm focus:border-[#0097B2] outline-none appearance-none font-bold text-slate-700 cursor-pointer">
+                        <option value="">All Tables</option>
+                        <?php while($t = mysqli_fetch_assoc($tables_result)): ?>
+                            <option value="<?php echo htmlspecialchars($t['TABLE_NAME']); ?>" <?php echo $filter === $t['TABLE_NAME'] ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars(ucfirst($t['TABLE_NAME'])); ?>
+                            </option>
+                        <?php endwhile; ?>
+                    </select>
+                    <i class="fa-solid fa-chevron-down absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+                </div>
+                
+                <!-- Search Input -->
+                <div class="relative flex-1">
+                    <i class="fa-solid fa-magnifying-glass absolute left-6 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" name="search" placeholder="Search by Staff Name or Action..." value="<?php echo htmlspecialchars($search); ?>" class="w-full pl-14 pr-6 py-4 bg-white border border-slate-100 rounded-[1.5rem] shadow-sm focus:border-[#0097B2] outline-none transition-all font-medium text-slate-700">
+                </div>
+                
+                <!-- Submit Button -->
+                <button type="submit" class="bg-slate-900 text-white px-8 py-4 rounded-[1.5rem] font-bold hover:bg-[#0097B2] transition shadow-lg shrink-0">
+                    <i class="fa-solid fa-filter mr-2"></i> Filter Logs
+                </button>
+                
+                <!-- Clear Button (Only shows if search or filter is active) -->
+                <?php if(!empty($search) || !empty($filter)): ?>
+                <a href="audit_trail.php" class="bg-white border-2 border-slate-200 text-slate-600 px-8 py-4 rounded-[1.5rem] font-bold hover:bg-slate-50 hover:text-slate-900 transition shadow-sm shrink-0 flex items-center justify-center">
+                    Clear
+                </a>
+                <?php endif; ?>
+            </form>
         </div>
 
         <!-- Audit Table -->
@@ -107,7 +168,7 @@ $result = mysqli_query($conn, $query);
                             <tr>
                                 <td colspan="5" class="p-10 text-center text-slate-400 font-bold">
                                     <i class="fa-solid fa-ghost text-3xl mb-3 opacity-50 block"></i>
-                                    No audit logs found yet. System is quiet!
+                                    No audit logs found for that search. System is quiet!
                                 </td>
                             </tr>
                         <?php endif; ?>

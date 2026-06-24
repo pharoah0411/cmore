@@ -28,7 +28,21 @@ unset($_SESSION['flash']);
             if(el.classList.contains('hidden')) el.classList.remove('hidden');
             else el.classList.add('hidden');
         }
+// ---- View Image Modal ----
+        function viewImage(src, event) {
+            // Stop the row expansion from triggering
+            event.stopPropagation(); 
+            document.getElementById('viewImageModalSrc').src = src;
+            document.getElementById('viewImageModal').classList.remove('hidden');
+            document.getElementById('viewImageModal').classList.add('flex');
+            document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        }
 
+        function closeViewImageModal() {
+            document.getElementById('viewImageModal').classList.add('hidden');
+            document.getElementById('viewImageModal').classList.remove('flex');
+            document.body.style.overflow = '';
+        }
         // ---- Delete confirmation modal ----
         function confirmDelete(id, name) {
             document.getElementById('deleteProductId').value = id;
@@ -56,9 +70,16 @@ unset($_SESSION['flash']);
                 <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">Product Inventory</h1>
                 <p class="text-slate-500 font-medium mt-1">Monitor stock levels and manage clinical supplies.</p>
             </div>
-            <a href="inventory_add.php" class="bg-[#0097B2] text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-teal-100 hover:scale-105 transition-all inline-flex items-center">
-                <i class="fa-solid fa-plus mr-2"></i> Add New Product
-            </a>
+            
+            <div class="flex items-center space-x-4">
+                <a href="supplier.php" class="bg-white border-2 border-slate-200 text-slate-600 px-6 py-3 rounded-2xl font-bold shadow-sm hover:border-[#0097B2] hover:text-[#0097B2] hover:shadow-md transition-all inline-flex items-center">
+                    <i class="fa-solid fa-truck-fast mr-2"></i> View Suppliers
+                </a>
+                
+                <a href="inventory_add.php" class="bg-[#0097B2] text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-teal-100 hover:scale-105 transition-all inline-flex items-center border-2 border-[#0097B2]">
+                    <i class="fa-solid fa-plus mr-2"></i> Add New Product
+                </a>
+            </div>
         </header>
 
         <?php if ($flash): ?>
@@ -99,6 +120,7 @@ unset($_SESSION['flash']);
                         <option value="" <?php echo $filter_selected === '' ? 'selected' : ''; ?>>All Products</option>
                         <option value="low" <?php echo $filter_selected === 'low' ? 'selected' : ''; ?>>Low Stock (&lt; 5)</option>
                         <option value="expired" <?php echo $filter_selected === 'expired' ? 'selected' : ''; ?>>Expired</option>
+                        <option value="with_image" <?php echo $filter_selected === 'with_image' ? 'selected' : ''; ?>>With Picture</option>
                     </select>
                     <i class="fa-solid fa-chevron-down absolute right-6 top-1/2 -translate-y-1/2 text-slate-400"></i>
                 </div>
@@ -122,29 +144,44 @@ unset($_SESSION['flash']);
                         <th class="w-[25%] p-6 text-center text-xs font-black uppercase tracking-widest text-slate-400">Actions</th>
                     </tr>
                 </thead>
+                <div id="viewImageModal" class="hidden fixed inset-0 z-[60] items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 transition-all"
+         onclick="if(event.target === this) closeViewImageModal()">
+        <div class="relative max-w-2xl w-full flex flex-col items-center animate-fade-in-up">
+            <button type="button" onclick="closeViewImageModal()" class="absolute -top-12 right-0 text-white hover:text-slate-300 transition text-3xl">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="bg-white p-2 rounded-3xl shadow-2xl w-full max-h-[85vh] flex items-center justify-center overflow-hidden relative">
+                <img id="viewImageModalSrc" src="" alt="Product Full View" class="w-full h-full object-contain rounded-2xl max-h-[80vh]">
+            </div>
+            <p class="text-white/70 text-sm mt-4 font-medium"><i class="fa-solid fa-compress mr-1"></i> Click anywhere outside to close</p>
+        </div>
+    </div>
                 <tbody class="divide-y divide-slate-50">
                     <?php
                     $where_clauses = [];
                     if (!empty($_GET['category'])) $where_clauses[] = "p.CATEGORY = '" . mysqli_real_escape_string($conn, $_GET['category']) . "'";
                     if (!empty($_GET['search'])) $where_clauses[] = "p.BRAND_NAME LIKE '%" . mysqli_real_escape_string($conn, $_GET['search']) . "%'";
 
-                    // Apply filter: low stock or expired
+                    // Apply filter: low stock, expired, or with image
                     $filter = isset($_GET['filter']) ? $_GET['filter'] : '';
                     if ($filter === 'low') {
                         $where_clauses[] = "p.STOCK_QUANTITY < 5";
                     } elseif ($filter === 'expired') {
                         $where_clauses[] = "p.EXPIRY_DATE IS NOT NULL AND DATE(p.EXPIRY_DATE) < CURDATE()";
+                    } elseif ($filter === 'with_image') {
+                        $where_clauses[] = "p.PRODUCT_IMAGE IS NOT NULL AND p.PRODUCT_IMAGE != ''";
+                    } elseif ($filter === 'no_image') { // ADD THIS LINE!
+                        $where_clauses[] = "(p.PRODUCT_IMAGE IS NULL OR p.PRODUCT_IMAGE = '')";
                     }
 
                     $where_sql = count($where_clauses) > 0 ? "WHERE " . implode(" AND ", $where_clauses) : "";
 
-                        // Order low-stock products to the top: items with STOCK_QUANTITY < 5 first,
-                        // then by STOCK_QUANTITY ascending (lowest numbers first), then by category and brand.
-                        $sql = "SELECT p.*, s.COMPANY_NAME, s.CONTACT_PERSON, s.PHONE_NUMBER, s.EMAIL 
-                            FROM PRODUCT p 
-                            LEFT JOIN SUPPLIER s ON p.SUPPLIER_ID = s.SUPPLIER_ID 
-                            $where_sql 
-                            ORDER BY (p.STOCK_QUANTITY < 5) DESC, p.STOCK_QUANTITY ASC, p.CATEGORY ASC, p.BRAND_NAME ASC";
+                    // Order low-stock products to the top
+                    $sql = "SELECT p.*, s.COMPANY_NAME, s.CONTACT_PERSON, s.PHONE_NUMBER, s.EMAIL 
+                        FROM product p 
+                        LEFT JOIN supplier s ON p.SUPPLIER_ID = s.SUPPLIER_ID 
+                        $where_sql 
+                        ORDER BY (p.STOCK_QUANTITY < 5) DESC, p.STOCK_QUANTITY ASC, p.CATEGORY ASC, p.BRAND_NAME ASC";
                             
                     $res = mysqli_query($conn, $sql);
 
@@ -152,7 +189,6 @@ unset($_SESSION['flash']);
                         while($row = mysqli_fetch_assoc($res)):
                             $is_low = ($row['STOCK_QUANTITY'] < 5);
                             $supp_row_id = "supp_" . $row['PRODUCT_ID'];
-                            // JS-safe, HTML-attribute-safe version of the brand name for the delete modal.
                             $js_name = htmlspecialchars(json_encode($row['BRAND_NAME']), ENT_QUOTES);
                             
                             $expiry_badge = '';
@@ -172,14 +208,21 @@ unset($_SESSION['flash']);
                     <tr class="hover:bg-slate-50/80 transition-colors group cursor-pointer" onclick="toggleSupplier('<?php echo $supp_row_id; ?>', event)">
                         <td class="p-6">
                             <div class="flex items-start space-x-4">
-                                <div class="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:text-[#0097B2] shadow-sm transition-all border border-transparent group-hover:border-slate-100 shrink-0">
-                                    <i class="fa-solid fa-box-open text-lg"></i>
-                                </div>
+                                <?php if(!empty($row['PRODUCT_IMAGE'])): ?>
+                                    <div onclick="viewImage('<?php echo htmlspecialchars($row['PRODUCT_IMAGE']); ?>', event)" class="w-12 h-12 rounded-2xl shrink-0 overflow-hidden border border-slate-200 shadow-sm bg-white flex items-center justify-center cursor-pointer hover:border-[#0097B2] hover:shadow-md hover:opacity-80 transition-all group-hover:border-[#0097B2]" title="Click to view image">
+                                        <img src="<?php echo htmlspecialchars($row['PRODUCT_IMAGE']); ?>" alt="Product Image" class="w-full h-full object-cover">
+                                    </div>
+                                <?php else: ?>
+                                    <div class="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:text-[#0097B2] shadow-sm transition-all border border-transparent group-hover:border-slate-100 shrink-0">
+                                        <i class="fa-solid fa-box-open text-lg"></i>
+                                    </div>
+                                <?php endif; ?>
+
                                 <div>
                                     <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-0.5">#PRD-<?php echo str_pad($row['PRODUCT_ID'], 4, '0', STR_PAD_LEFT); ?></p>
-                                    <p class="font-bold text-slate-800 text-lg leading-tight truncate"><?php echo $row['BRAND_NAME']; ?></p>
+                                    <p class="font-bold text-slate-800 text-lg leading-tight truncate"><?php echo htmlspecialchars($row['BRAND_NAME']); ?></p>
                                     <div class="flex items-center">
-                                        <span class="inline-block text-[9px] font-black bg-slate-100 text-slate-500 px-2 py-0.5 rounded uppercase tracking-tighter mt-1"><?php echo $row['CATEGORY']; ?></span>
+                                        <span class="inline-block text-[9px] font-black bg-slate-100 text-slate-500 px-2 py-0.5 rounded uppercase tracking-tighter mt-1"><?php echo htmlspecialchars($row['CATEGORY']); ?></span>
                                         <?php echo $expiry_badge; ?> 
                                     </div>
                                 </div>
@@ -198,7 +241,7 @@ unset($_SESSION['flash']);
                         </td>
                         <td class="p-6">
                             <div class="flex items-center justify-center space-x-2">
-                                <a href="inventory_edit.php?product_id=<?php echo $row['PRODUCT_ID']; ?>" class="action-btn w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-[#0097B2] hover:text-white transition duration-300 shadow-sm" title="Edit Product">
+                                <a href="inventory_edit.php?id=<?php echo $row['PRODUCT_ID']; ?>" class="action-btn w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-[#0097B2] hover:text-white transition duration-300 shadow-sm" title="Edit Product">
                                     <i class="fa-solid fa-pen-to-square text-sm"></i>
                                 </a>
                                 <button type="button" onclick="confirmDelete(<?php echo $row['PRODUCT_ID']; ?>, <?php echo $js_name; ?>)" class="action-btn w-10 h-10 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-red-500 hover:text-white transition duration-300 shadow-sm" title="Delete Product">
@@ -240,6 +283,11 @@ unset($_SESSION['flash']);
                                                     </p>
                                                     <?php endif; ?>
                                                 </div>
+                                                <div class="mt-4 pt-4 border-t border-slate-50">
+                                                    <a href="supplier.php?search=<?php echo urlencode($row['COMPANY_NAME']); ?>" class="inline-flex items-center text-sm font-bold text-[#0097B2] hover:text-teal-700 transition">
+                                                        View & Manage Supplier <i class="fa-solid fa-arrow-right ml-2 text-xs"></i>
+                                                    </a>
+                                                </div>
                                             </div>
                                         <?php else: ?>
                                             <p class="text-slate-400 italic mb-4 text-sm">No supplier assigned to this product.</p>
@@ -267,7 +315,7 @@ unset($_SESSION['flash']);
                                                 <a href="inventory_view.php?product_id=<?php echo $row['PRODUCT_ID']; ?>" class="action-btn px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 flex items-center hover:bg-[#0097B2] hover:border-[#0097B2] hover:text-white transition shadow-sm text-sm font-bold">
                                                     <i class="fa-solid fa-eye mr-2"></i> View
                                                 </a>
-                                                <a href="inventory_edit.php?product_id=<?php echo $row['PRODUCT_ID']; ?>" class="action-btn px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 flex items-center hover:bg-[#0097B2] hover:border-[#0097B2] hover:text-white transition shadow-sm text-sm font-bold">
+                                                <a href="inventory_edit.php?id=<?php echo $row['PRODUCT_ID']; ?>" class="action-btn px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 flex items-center hover:bg-[#0097B2] hover:border-[#0097B2] hover:text-white transition shadow-sm text-sm font-bold">
                                                     <i class="fa-solid fa-pen-to-square mr-2"></i> Edit
                                                 </a>
                                                 <a href="adjust_stock.php?product_id=<?php echo $row['PRODUCT_ID']; ?>" class="action-btn px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 flex items-center hover:bg-[#0097B2] hover:border-[#0097B2] hover:text-white transition shadow-sm text-sm font-bold">
@@ -292,7 +340,6 @@ unset($_SESSION['flash']);
         </div>
     </main>
 
-    <!-- ================= DELETE CONFIRMATION MODAL ================= -->
     <div id="deleteModal" class="hidden fixed inset-0 z-50 items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4"
          onclick="if(event.target === this) closeDeleteModal()">
         <div class="bg-white rounded-[2rem] shadow-2xl max-w-md w-full p-8">

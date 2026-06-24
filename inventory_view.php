@@ -49,7 +49,7 @@ $is_low = ($row['STOCK_QUANTITY'] < 5);
                 <a href="adjust_stock.php?product_id=<?php echo $row['PRODUCT_ID']; ?>" class="bg-white border border-slate-200 text-slate-700 px-6 py-3 rounded-2xl font-bold shadow-sm hover:bg-slate-50 transition-all inline-flex items-center">
                     <i class="fa-solid fa-scale-unbalanced-flip mr-2 text-slate-400"></i> Adjust Stock
                 </a>
-                <a href="inventory_edit.php?product_id=<?php echo $row['PRODUCT_ID']; ?>" class="bg-[#0097B2] text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-teal-100 hover:scale-105 transition-all inline-flex items-center">
+                <a href="inventory_edit.php?id=<?php echo $row['PRODUCT_ID']; ?>" class="bg-[#0097B2] text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-teal-100 hover:scale-105 transition-all inline-flex items-center">
                     <i class="fa-solid fa-pen-to-square mr-2"></i> Edit Product
                 </a>
             </div>

@@ -13,15 +13,15 @@ if(isset($_POST['register'])) {
     $interval = mysqli_real_escape_string($conn, $_POST['follow_up']);
     $complaints = mysqli_real_escape_string($conn, $_POST['complaints']);
 
-    // Validate Malaysian Phone Number Format
-    // Valid formats: 01X-XXXXXXX, 0XX-XXXXXXX, or without dash
-    // Must start with 0 and be 10-11 digits total
+   // Validate Malaysian Phone Number Format
+    // Valid formats: 01X-XXXXXXX, 03-XXXXXXXX, 06-XXXXXXX
+    // Must start with 0 and be 9-11 digits total
     if (!empty($phone)) {
         $phone_digits = preg_replace('/\D/', '', $phone);
         
-        // Check if it's 10-11 digits starting with 0
-        if (strlen($phone_digits) < 10 || strlen($phone_digits) > 11 || $phone_digits[0] != '0') {
-            $error_msg = "Invalid Phone Number. Malaysian phone numbers must be 10-11 digits starting with 0 (e.g., 012-3456789 or 03-87654321).";
+        // Check if it's 9-11 digits starting with 0
+        if (strlen($phone_digits) < 9 || strlen($phone_digits) > 11 || $phone_digits[0] != '0') {
+            $error_msg = "Invalid Phone Number. Malaysian phone numbers must be 9-11 digits starting with 0 (e.g., 012-3456789, 03-87654321, or 06-1234567).";
         } 
         // Additional validation: second digit should be 1-9
         elseif (!preg_match("/^0[1-9]/", $phone_digits)) {

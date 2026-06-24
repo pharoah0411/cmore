@@ -69,16 +69,19 @@ if (isset($_SESSION['is_locked']) && $_SESSION['is_locked'] === true) {
 // ==========================================
 // Use this function across your system to track actions.
 // Example usage: systemLog($conn, "Added new patient", "patients", $new_patient_id);
-function systemLog($conn, $action, $table_name = NULL, $record_id = NULL) {
-    if(isset($_SESSION['USER_ID'])) {
-        $uid = $_SESSION['USER_ID'];
-        $act = mysqli_real_escape_string($conn, $action);
-        $tbl = $table_name ? "'" . mysqli_real_escape_string($conn, $table_name) . "'" : "NULL";
-        $rid = $record_id ? intval($record_id) : "NULL";
-        
-        $sql = "INSERT INTO audit_log (USER_ID, ACTION, TABLE_NAME, RECORD_ID) 
-                VALUES ($uid, '$act', $tbl, $rid)";
-        mysqli_query($conn, $sql);
+
+if (!function_exists('systemLog')) {
+    function systemLog($conn, $action, $table_name = NULL, $record_id = NULL) {
+        if(isset($_SESSION['USER_ID'])) {
+            $uid = $_SESSION['USER_ID'];
+            $act = mysqli_real_escape_string($conn, $action);
+            $tbl = $table_name ? "'" . mysqli_real_escape_string($conn, $table_name) . "'" : "NULL";
+            $rid = $record_id ? intval($record_id) : "NULL";
+            
+            $sql = "INSERT INTO audit_log (USER_ID, ACTION, TABLE_NAME, RECORD_ID) 
+                    VALUES ($uid, '$act', $tbl, $rid)";
+            mysqli_query($conn, $sql);
+        }
     }
 }
 ?>
