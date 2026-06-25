@@ -1,5 +1,5 @@
 -- C-More Clinical Suite Database Backup (Auto-Triggered)
--- Generated: 2026-06-24 21:10:02
+-- Generated: 2026-06-25 17:00:38
 -- Triggered By: Admin User
 -- --------------------------------------------------------
 
@@ -39,7 +39,7 @@ CREATE TABLE `audit_log` (
   `RECORD_ID` int(11) DEFAULT NULL,
   `CREATED_AT` timestamp NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`LOG_ID`)
-) ENGINE=InnoDB AUTO_INCREMENT=89 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=93 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- Data for table `audit_log`
 INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('1', '4', 'User logged in successfully', NULL, NULL, '2026-05-28 21:04:11');
@@ -130,6 +130,10 @@ INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID
 INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('86', '4', 'Performed a Smart Merge Restore from backup', NULL, NULL, '2026-06-25 03:06:45');
 INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('87', '4', 'Automatic backup completed upon staff logout', NULL, NULL, '2026-06-25 03:06:50');
 INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('88', '3', 'User logged in successfully', NULL, NULL, '2026-06-25 03:07:07');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('89', '3', 'Automatic backup completed upon staff logout', NULL, NULL, '2026-06-25 03:10:02');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('90', '3', 'User logged in successfully', NULL, NULL, '2026-06-25 17:12:46');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('91', '3', 'Automatic backup completed upon staff logout', NULL, NULL, '2026-06-25 17:31:06');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('92', '3', 'User logged in successfully', NULL, NULL, '2026-06-25 22:42:29');
 
 -- Table structure for table `eye_examination`
 DROP TABLE IF EXISTS `eye_examination`;
