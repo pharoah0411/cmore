@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>C-More | Reports & Analytics</title>
+    <title>C-More | Reports </title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -36,7 +36,7 @@
     <main class="flex-1 ml-72 p-12">
         <header class="flex justify-between items-end mb-12">
             <div>
-                <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">Reports & Analytics</h1>
+                <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">Reports</h1>
                 <p class="text-slate-500 font-medium mt-1">Generate comprehensive insights for clinic performance.</p>
             </div>
             <div class="flex space-x-3">

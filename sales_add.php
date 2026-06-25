@@ -46,6 +46,11 @@ if(isset($_POST['process_sale'])) {
     $paid_amount = floatval($_POST['paid_amount']);
     $total_amount = floatval($_POST['total_amount']);
     
+    // SERVER-SIDE CAP: Ensure paid amount never exceeds total amount
+    if ($paid_amount > $total_amount) {
+        $paid_amount = $total_amount;
+    }
+    
     if ($paid_amount >= $total_amount && $total_amount > 0) {
         $payment_status = 'Completed';
     } elseif ($paid_amount > 0 && $paid_amount < $total_amount) {
@@ -265,7 +270,7 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
 
                     <div>
                         <label class="text-[10px] font-black uppercase text-[#B9D977] tracking-widest block mb-2">Amount Paid (RM)</label>
-                        <input type="number" step="0.01" name="paid_amount" required oninput="calculateBalance()" placeholder="0.00" class="w-full p-3 bg-white border border-white rounded-xl outline-none font-mono font-bold text-slate-900 focus:ring-2 focus:ring-[#B9D977]">
+                        <input type="number" step="0.01" name="paid_amount" required oninput="calculateBalance()" placeholder="0.00" class="w-full p-3 bg-white border border-white rounded-xl outline-none font-mono font-bold text-slate-900 focus:ring-2 focus:ring-[#B9D977] transition-colors">
                     </div>
 
                     <div>
@@ -505,9 +510,21 @@ while($prod = mysqli_fetch_assoc($prod_res)) {
         function calculateBalance() {
             const total = parseFloat(document.getElementById('total_input').value) || 0;
             const paidInput = document.querySelector('input[name="paid_amount"]');
-            const paid = parseFloat(paidInput.value) || 0;
+            let paid = parseFloat(paidInput.value) || 0;
             const statusDropdown = document.getElementById('auto_status');
             
+            // LIMIT CHECK: Prevent paid amount from exceeding total amount
+            if (paid > total) {
+                paid = total;
+                paidInput.value = total > 0 ? total.toFixed(2) : '';
+                
+                // Optional: Flash a red border to indicate to the user it was capped
+                paidInput.classList.add('border-red-500', 'bg-red-50');
+                setTimeout(() => {
+                    paidInput.classList.remove('border-red-500', 'bg-red-50');
+                }, 500);
+            }
+
             let balance = total - paid;
             if (balance < 0) balance = 0;
             

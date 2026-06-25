@@ -12,12 +12,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $timestamp = strtotime($datetime);
     $day_of_week = date('w', $timestamp); // 0 = Sunday, 3 = Wednesday
     $hour = (int)date('H', $timestamp); // 24-hour format
+    $minute = (int)date('i', $timestamp); // Get minutes
 
     if ($day_of_week == 3) {
         $error = "Error: The clinic is closed on Wednesdays.";
-    } elseif ($hour < 11 || $hour >= 19) {
-        // Must be exactly 11:00 AM up to 6:59 PM
-        $error = "Error: Appointments must be scheduled between 11:00 AM and 7:00 PM.";
+    } elseif ($hour < 11 || $hour >= 19 || ($hour == 18 && $minute > 30)) {
+        // Must be between 11:00 AM and 6:30 PM exactly
+        $error = "Error: Appointments must be scheduled between 11:00 AM and 6:30 PM.";
     } else {
         $patient_id = '';
 
@@ -148,7 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <div class="mb-10">
                     <div class="flex justify-between items-end mb-2">
                         <label class="block text-sm font-bold text-slate-600">Appointment Date & Time</label>
-                        <span class="text-xs font-bold text-[#0097B2] bg-teal-50 px-2 py-1 rounded-md">Open: 11 AM - 7 PM (Closed Wed)</span>
+                        <span class="text-xs font-bold text-[#0097B2] bg-teal-50 px-2 py-1 rounded-md">Open: 11 AM - 7 PM (Last Appt: 6:30 PM, Closed Wed)</span>
                     </div>
                     <input type="datetime-local" name="appointment_datetime" id="appointment_datetime" required class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-[#0097B2] transition-colors font-medium text-slate-700">
                 </div>
@@ -204,12 +205,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             const selectedDate = new Date(this.value);
             const day = selectedDate.getDay(); 
             const hour = selectedDate.getHours();
+            const minute = selectedDate.getMinutes();
 
             if (day === 3) {
                 alert("The clinic is closed on Wednesdays. Please select another day.");
                 this.value = ''; 
-            } else if (hour < 11 || hour >= 19) {
-                alert("Appointments can only be scheduled between 11:00 AM and 7:00 PM.");
+            } else if (hour < 11 || hour >= 19 || (hour === 18 && minute > 30)) {
+                alert("Appointments can only be scheduled between 11:00 AM and 6:30 PM.");
                 this.value = ''; 
             }
         });

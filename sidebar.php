@@ -1,4 +1,6 @@
 <?php if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); } ?>
+<!-- Font Awesome CDN -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <aside class="w-72 bg-[#0f172a] text-slate-300 flex flex-col fixed h-full shadow-2xl z-50 overflow-hidden">
 
     <!-- ambient brand glow -->
@@ -89,7 +91,7 @@
         }
 
         /* ---------------------------------- MAIN ---------------------------------- */
-        nav_item('directory.php', 'fa-solid fa-grid-2', 'Dashboard', $current);
+        nav_item('directory.php', 'fa-solid fa-table-cells-large', 'Dashboard', $current);
 
         /* --------------------------------- CLINIC --------------------------------- */
         nav_section('Clinic');

@@ -8,6 +8,21 @@ if(!isset($_GET['product_id']) || empty($_GET['product_id'])) {
 
 $product_id = mysqli_real_escape_string($conn, $_GET['product_id']);
 
+// ==========================================
+// HANDLE INLINE SUPPLIER ASSIGNMENT
+// ==========================================
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['assign_supplier'])) {
+    $new_supplier_id = mysqli_real_escape_string($conn, $_POST['supplier_id']);
+    
+    $update_sql = "UPDATE PRODUCT SET SUPPLIER_ID = '$new_supplier_id' WHERE PRODUCT_ID = '$product_id'";
+    if (mysqli_query($conn, $update_sql)) {
+        // Refresh the page to show the newly assigned supplier
+        header("Location: inventory_view.php?product_id=$product_id&msg=assigned");
+        exit;
+    }
+}
+// ==========================================
+
 $sql = "SELECT p.*, s.COMPANY_NAME, s.CONTACT_PERSON, s.PHONE_NUMBER, s.EMAIL 
         FROM PRODUCT p 
         LEFT JOIN SUPPLIER s ON p.SUPPLIER_ID = s.SUPPLIER_ID 
@@ -54,6 +69,13 @@ $is_low = ($row['STOCK_QUANTITY'] < 5);
                 </a>
             </div>
         </header>
+
+        <?php if(isset($_GET['msg']) && $_GET['msg'] == 'assigned'): ?>
+            <div class="bg-teal-50 text-teal-700 p-4 rounded-xl mb-6 font-bold flex items-center border border-teal-100 max-w-6xl">
+                <i class="fa-solid fa-circle-check mr-3 text-teal-500"></i>
+                Supplier assigned successfully!
+            </div>
+        <?php endif; ?>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl">
             
@@ -152,14 +174,27 @@ $is_low = ($row['STOCK_QUANTITY'] < 5);
                         </div>
                     </div>
                 <?php else: ?>
-                    <div class="relative z-10 flex flex-col items-center justify-center py-12 text-center bg-white/5 rounded-3xl border border-white/10">
+                    <div class="relative z-10 flex flex-col items-center justify-center py-6 text-center bg-white/5 rounded-3xl border border-white/10 w-full">
                         <div class="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center text-slate-500 mb-4 border border-slate-700">
                             <i class="fa-solid fa-building-circle-xmark text-xl"></i>
                         </div>
-                        <p class="text-slate-400 font-medium">No supplier is currently<br>assigned to this product.</p>
-                        <a href="inventory_edit.php?product_id=<?php echo $row['PRODUCT_ID']; ?>" class="mt-6 text-sm font-bold text-[#0097B2] hover:text-teal-400 transition">
-                            Assign a Supplier <i class="fa-solid fa-arrow-right ml-1"></i>
-                        </a>
+                        <p class="text-slate-400 font-medium mb-6">No supplier is currently<br>assigned to this product.</p>
+                        
+                        <form action="" method="POST" class="w-full px-8 flex flex-col items-center">
+                            <select name="supplier_id" required class="w-full p-3 mb-4 bg-slate-800 border border-slate-600 rounded-xl text-sm font-bold text-slate-300 focus:outline-none focus:border-[#0097B2]">
+                                <option value="">-- Choose Supplier --</option>
+                                <?php
+                                $sup_res = mysqli_query($conn, "SELECT SUPPLIER_ID, COMPANY_NAME FROM SUPPLIER ORDER BY COMPANY_NAME ASC");
+                                while($sup = mysqli_fetch_assoc($sup_res)) {
+                                    echo "<option value='".$sup['SUPPLIER_ID']."'>".htmlspecialchars($sup['COMPANY_NAME'])."</option>";
+                                }
+                                ?>
+                            </select>
+                            <button type="submit" name="assign_supplier" class="text-sm w-full font-bold text-white bg-[#0097B2] hover:bg-teal-500 px-6 py-3 rounded-xl transition shadow-lg shadow-[#0097B2]/20 flex justify-center items-center">
+                                Save Assignment <i class="fa-solid fa-check ml-2"></i>
+                            </button>
+                        </form>
+
                     </div>
                 <?php endif; ?>
             </div>
