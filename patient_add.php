@@ -10,8 +10,9 @@ if(isset($_POST['register'])) {
     $address = mysqli_real_escape_string($conn, $_POST['address']);
     
     $connection = mysqli_real_escape_string($conn, $_POST['connection']);
-    $interval = mysqli_real_escape_string($conn, $_POST['follow_up']);
+    $interval = mysqli_real_escape_string($conn, $_POST['follow_up'] ?? '');
     $complaints = mysqli_real_escape_string($conn, $_POST['complaints']);
+    $ic_digits = '';
 
    // Validate Malaysian Phone Number Format
     // Valid formats: 01X-XXXXXXX, 03-XXXXXXXX, 06-XXXXXXX
@@ -64,6 +65,17 @@ if(isset($_POST['register'])) {
         }
     }
 
+    if (empty($error_msg) && !empty($ic)) {
+        $duplicate_ic_sql = "SELECT PATIENT_ID FROM PATIENT
+                             WHERE REPLACE(REPLACE(IC_NUMBER, '-', ''), ' ', '') = '$ic_digits'
+                             LIMIT 1";
+        $duplicate_ic_result = mysqli_query($conn, $duplicate_ic_sql);
+
+        if ($duplicate_ic_result && mysqli_num_rows($duplicate_ic_result) > 0) {
+            $error_msg = "This IC Number already exists in the system. The patient cannot be added.";
+        }
+    }
+
     if (empty($error_msg)) {
         // FOOLPROOF BYPASS: Protects against strict unique constraints
         if(empty($ic)) {
@@ -79,7 +91,9 @@ if(isset($_POST['register'])) {
             header("Location: patients.php?msg=added");
             exit();
         } else {
-            $error_msg = "Database Error: " . mysqli_error($conn);
+            $error_msg = mysqli_errno($conn) === 1062
+                ? "This IC Number already exists in the system. The patient cannot be added."
+                : "Database Error: " . mysqli_error($conn);
         }
     }
 }
@@ -92,7 +106,27 @@ if(isset($_POST['register'])) {
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <style> body { font-family: 'Plus Jakarta Sans', sans-serif; } </style>
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .error-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            background: rgba(15, 23, 42, 0.45);
+        }
+        .error-modal__content {
+            width: min(100%, 32rem);
+            background: #ffffff;
+            border: 1px solid #fecaca;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.2);
+        }
+    </style>
 </head>
 <body class="bg-[#f8fafc] flex min-h-screen">
     <?php include('sidebar.php'); ?>
@@ -105,9 +139,19 @@ if(isset($_POST['register'])) {
         </header>
 
         <?php if(!empty($error_msg)): ?>
-            <div class="mb-8 bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-2xl flex items-center shadow-sm max-w-5xl">
-                <i class="fa-solid fa-triangle-exclamation text-xl mr-3"></i>
-                <span class="font-bold"><?php echo $error_msg; ?></span>
+            <div class="error-modal" role="dialog" aria-modal="true" aria-labelledby="error-modal-title">
+                <div class="error-modal__content">
+                    <div class="flex items-start gap-3">
+                        <i class="fa-solid fa-triangle-exclamation text-xl text-red-600 mt-1"></i>
+                        <div>
+                            <h2 id="error-modal-title" class="font-extrabold text-slate-900">Unable to add patient</h2>
+                            <p class="mt-2 text-sm font-medium text-slate-600"><?php echo htmlspecialchars($error_msg); ?></p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="this.closest('.error-modal').remove()" class="mt-6 w-full rounded-xl bg-red-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-red-700">
+                        Close
+                    </button>
+                </div>
             </div>
         <?php endif; ?>
 

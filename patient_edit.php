@@ -24,7 +24,7 @@ if(isset($_POST['update'])) {
     $phone = trim(mysqli_real_escape_string($conn, $_POST['phone']));
     $address = mysqli_real_escape_string($conn, $_POST['address']);
     $connection = mysqli_real_escape_string($conn, $_POST['connection']);
-    $interval = mysqli_real_escape_string($conn, $_POST['follow_up']);
+    $interval = mysqli_real_escape_string($conn, $_POST['follow_up'] ?? '');
     $complaints = mysqli_real_escape_string($conn, $_POST['complaints']);
 
     // Validate Malaysian Phone Number Format

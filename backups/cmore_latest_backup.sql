@@ -1,6 +1,6 @@
 -- C-More Clinical Suite Database Backup (Auto-Triggered)
--- Generated: 2026-06-25 18:45:21
--- Triggered By: Admin User
+-- Generated: 2026-08-25 13:21:26
+-- Triggered By: hor ying huai
 -- --------------------------------------------------------
 
 SET FOREIGN_KEY_CHECKS=0;
@@ -19,7 +19,7 @@ CREATE TABLE `appointment` (
   KEY `fk_appt_staff` (`STAFF_ID`),
   CONSTRAINT `fk_appt_patient` FOREIGN KEY (`PATIENT_ID`) REFERENCES `patient` (`PATIENT_ID`) ON DELETE CASCADE,
   CONSTRAINT `fk_appt_staff` FOREIGN KEY (`STAFF_ID`) REFERENCES `user` (`USER_ID`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- Data for table `appointment`
 INSERT INTO `appointment` (`APPOINTMENT_ID`, `PATIENT_ID`, `STAFF_ID`, `APPOINTMENT_DATETIME`, `STATUS`) VALUES ('3', '3', '1', '2026-06-25 18:50:00', 'Pending');
@@ -28,6 +28,8 @@ INSERT INTO `appointment` (`APPOINTMENT_ID`, `PATIENT_ID`, `STAFF_ID`, `APPOINTM
 INSERT INTO `appointment` (`APPOINTMENT_ID`, `PATIENT_ID`, `STAFF_ID`, `APPOINTMENT_DATETIME`, `STATUS`) VALUES ('8', '14', '1', '2026-06-23 11:00:00', 'Completed');
 INSERT INTO `appointment` (`APPOINTMENT_ID`, `PATIENT_ID`, `STAFF_ID`, `APPOINTMENT_DATETIME`, `STATUS`) VALUES ('9', '14', '1', '2026-06-18 18:00:00', 'Pending');
 INSERT INTO `appointment` (`APPOINTMENT_ID`, `PATIENT_ID`, `STAFF_ID`, `APPOINTMENT_DATETIME`, `STATUS`) VALUES ('12', '14', '1', '2026-06-23 16:50:00', 'Pending');
+INSERT INTO `appointment` (`APPOINTMENT_ID`, `PATIENT_ID`, `STAFF_ID`, `APPOINTMENT_DATETIME`, `STATUS`) VALUES ('13', '22', '1', '2026-06-26 13:48:00', 'Pending');
+INSERT INTO `appointment` (`APPOINTMENT_ID`, `PATIENT_ID`, `STAFF_ID`, `APPOINTMENT_DATETIME`, `STATUS`) VALUES ('14', '22', '1', '2026-06-26 11:44:00', 'Pending');
 
 -- Table structure for table `audit_log`
 DROP TABLE IF EXISTS `audit_log`;
@@ -39,7 +41,7 @@ CREATE TABLE `audit_log` (
   `RECORD_ID` int(11) DEFAULT NULL,
   `CREATED_AT` timestamp NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`LOG_ID`)
-) ENGINE=InnoDB AUTO_INCREMENT=104 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=123 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- Data for table `audit_log`
 INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('1', '4', 'User logged in successfully', NULL, NULL, '2026-05-28 21:04:11');
@@ -145,6 +147,25 @@ INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID
 INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('101', '4', 'Automatic backup completed upon staff logout', NULL, NULL, '2026-06-25 23:57:46');
 INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('102', '3', 'User logged in successfully', NULL, NULL, '2026-06-26 00:17:54');
 INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('103', '3', 'Edited sale transaction #TXN-14 (Changed paid amount to RM120.00)', 'SALES', '14', '2026-06-26 00:30:08');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('104', '3', 'User logged in successfully', NULL, NULL, '2026-06-26 09:40:14');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('105', '3', 'Added new walk-in patient: damia', 'patient', '22', '2026-06-26 09:44:27');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('106', '3', 'Booked new appointment', 'appointment', '13', '2026-06-26 09:44:27');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('107', '3', 'Booked new appointment', 'appointment', '14', '2026-06-26 09:44:48');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('108', '3', 'Generated a manual database backup', NULL, NULL, '2026-06-26 09:48:10');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('109', '3', 'Performed a Smart Merge Restore from backup', NULL, NULL, '2026-06-26 09:48:19');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('110', '3', 'Automatic backup completed upon staff logout', NULL, NULL, '2026-06-26 09:49:30');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('111', '3', 'User logged in successfully', NULL, NULL, '2026-06-26 12:51:52');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('112', '4', 'User logged in successfully', NULL, NULL, '2026-07-11 02:10:05');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('113', '4', 'Automatic backup completed upon staff logout', NULL, NULL, '2026-07-11 02:10:24');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('114', '3', 'User logged in successfully', NULL, NULL, '2026-07-11 02:10:32');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('115', '3', 'Automatic backup completed upon staff logout', NULL, NULL, '2026-07-11 02:11:04');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('116', '3', 'User logged in successfully', NULL, NULL, '2026-08-25 18:41:24');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('117', '3', 'Automatic backup completed upon staff logout', NULL, NULL, '2026-08-25 18:41:32');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('118', '3', 'User logged in successfully', NULL, NULL, '2026-08-25 18:44:12');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('119', '3', 'Automatic backup completed upon staff logout', NULL, NULL, '2026-08-25 18:44:18');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('120', '3', 'User logged in successfully', NULL, NULL, '2026-08-25 18:45:01');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('121', '3', 'Automatic backup completed upon staff logout', NULL, NULL, '2026-08-25 18:45:08');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('122', '5', 'User logged in successfully', NULL, NULL, '2026-08-25 18:45:15');
 
 -- Table structure for table `eye_examination`
 DROP TABLE IF EXISTS `eye_examination`;
@@ -194,11 +215,11 @@ CREATE TABLE `patient` (
   `COMPLAINTS` text DEFAULT NULL,
   PRIMARY KEY (`PATIENT_ID`),
   UNIQUE KEY `IC_NUMBER` (`IC_NUMBER`)
-) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=29 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- Data for table `patient`
-INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('1', 'John Doe', '850101-14-5567', '012-3456789', '123 Jalan Ampang, KL', '2026-01-15', 'Self', '6 Months', 'Blurry vision at distance, frequent headaches');
-INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('2', 'Jane Smith', '920512-10-6642', '017-9876543', '45 Crystal Heights, PJ', '2026-02-10', 'Family (Wife of John)', '1 Year', 'Dry eyes and irritation after using computer');
+INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('1', 'Michael Kors', '850101-14-5567', '012-3456789', '123 Jalan Ampang, KL', '2026-01-15', 'Self', '6 Months', 'Blurry vision at distance, frequent headaches');
+INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('2', 'Daniel Sim', '920512-10-6642', '017-9876543', '45 Crystal Heights, PJ', '2026-02-10', 'Family (Wife of John)', '1 Year', 'Dry eyes and irritation after using computer');
 INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('3', 'Robert Lim', '781120-01-5231', '019-2233445', '8-2-1 Kondominium Ria, Puchong', '2026-03-05', 'Referral', '3 Months', 'Sudden flashes of light in left eye');
 INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('14', 'hhrror', '040718020390', '0195121339', 'To be updated', '2026-05-18', 'None', '6 Months', 'None');
 INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('15', 'farerere', '050506868968', '01947474779', 'Walk-in / Unrecorded', '2026-05-18', 'None', '3 Months', 'None');
@@ -206,6 +227,11 @@ INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRE
 INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('19', 'Walk in', 'NO-IC-58750', '0000000000', 'Walk-in / Unrecorded', '2026-06-22', 'None', 'Not Set', 'None');
 INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('20', 'Hor Ying Huai', '041104020390', '055-5555555', '23, Jalan Sri klebang 27,', '2026-06-23', '', '3 Months', '');
 INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('21', 'Nur Viviana Sia', '770529045294', '019-5597448', '', '2026-06-24', 'Family', '6 Months', 'slight headache');
+INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('22', 'damia', 'NO-IC-1782438267', '019-5555555', 'Walk-in / Unrecorded', '2026-06-26', 'None', 'Not Set', 'None');
+INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('23', 'Test Patient', '010101-01-0101', '012-3456789', 'Melaka', '2026-08-21', 'Self', '6 Months', 'Short-sightedness');
+INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('24', 'Puteri Nur Hasnah BInti Megat Indra Shahpri', '041204076508', '011-2345678', '', '2026-08-25', '', '', '');
+INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('26', 'ainur mardiyyah', '041104040260', '012-3456789', '', '2026-08-25', '', '', '');
+INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('28', 'ff', '041104-04-0261', '019-5121339', '', '2026-08-25', '', '', '');
 
 -- Table structure for table `product`
 DROP TABLE IF EXISTS `product`;
@@ -233,7 +259,7 @@ INSERT INTO `product` (`PRODUCT_ID`, `CATEGORY`, `BRAND_NAME`, `STOCK_QUANTITY`,
 INSERT INTO `product` (`PRODUCT_ID`, `CATEGORY`, `BRAND_NAME`, `STOCK_QUANTITY`, `UNIT_PRICE`, `MINIMUM_PRICE`, `SUPPLIER_ID`, `EXPIRY_DATE`, `PRODUCT_IMAGE`) VALUES ('6', 'Contact Lenses', 'Acuvue Oasys Bi-weekly (Box of 6)', '41', '120.00', '100.00', NULL, '2026-07-01', 'uploads/products/prod_6a3c02a62100d.png');
 INSERT INTO `product` (`PRODUCT_ID`, `CATEGORY`, `BRAND_NAME`, `STOCK_QUANTITY`, `UNIT_PRICE`, `MINIMUM_PRICE`, `SUPPLIER_ID`, `EXPIRY_DATE`, `PRODUCT_IMAGE`) VALUES ('7', 'Frames', 'Alcon Opti-Free PureMoist 300ml', '25', '35.00', '28.00', NULL, NULL, 'uploads/products/prod_6a3c0457af4c2.jpg');
 INSERT INTO `product` (`PRODUCT_ID`, `CATEGORY`, `BRAND_NAME`, `STOCK_QUANTITY`, `UNIT_PRICE`, `MINIMUM_PRICE`, `SUPPLIER_ID`, `EXPIRY_DATE`, `PRODUCT_IMAGE`) VALUES ('8', 'Frames', 'Oakley Holbrook Matte Black', '12', '750.00', '680.00', NULL, NULL, NULL);
-INSERT INTO `product` (`PRODUCT_ID`, `CATEGORY`, `BRAND_NAME`, `STOCK_QUANTITY`, `UNIT_PRICE`, `MINIMUM_PRICE`, `SUPPLIER_ID`, `EXPIRY_DATE`, `PRODUCT_IMAGE`) VALUES ('9', 'Contact Lenses', 'Alcon Dailies Total1 (Box of 30)', '197', '180.00', '150.00', NULL, '2026-06-15', 'uploads/products/prod_6a3c049be0d05.jpg');
+INSERT INTO `product` (`PRODUCT_ID`, `CATEGORY`, `BRAND_NAME`, `STOCK_QUANTITY`, `UNIT_PRICE`, `MINIMUM_PRICE`, `SUPPLIER_ID`, `EXPIRY_DATE`, `PRODUCT_IMAGE`) VALUES ('9', 'Contact Lenses', 'Alcon Dailies Total1 (Box of 30)', '196', '180.00', '150.00', NULL, '2026-06-15', 'uploads/products/prod_6a3c049be0d05.jpg');
 INSERT INTO `product` (`PRODUCT_ID`, `CATEGORY`, `BRAND_NAME`, `STOCK_QUANTITY`, `UNIT_PRICE`, `MINIMUM_PRICE`, `SUPPLIER_ID`, `EXPIRY_DATE`, `PRODUCT_IMAGE`) VALUES ('10', 'Frames', 'Prada PR 17WS Rectangular', '8', '1250.00', '1000.00', NULL, NULL, NULL);
 INSERT INTO `product` (`PRODUCT_ID`, `CATEGORY`, `BRAND_NAME`, `STOCK_QUANTITY`, `UNIT_PRICE`, `MINIMUM_PRICE`, `SUPPLIER_ID`, `EXPIRY_DATE`, `PRODUCT_IMAGE`) VALUES ('11', 'Contact Lenses', 'Bausch + Lomb Biotrue ONEday', '8', '145.00', '130.00', '3', '2024-12-01', 'uploads/products/prod_6a3c039863619.png');
 INSERT INTO `product` (`PRODUCT_ID`, `CATEGORY`, `BRAND_NAME`, `STOCK_QUANTITY`, `UNIT_PRICE`, `MINIMUM_PRICE`, `SUPPLIER_ID`, `EXPIRY_DATE`, `PRODUCT_IMAGE`) VALUES ('12', 'Frames', 'Tom Ford Blue Block Square', '100', '1800.00', '1500.00', NULL, NULL, NULL);
@@ -276,7 +302,7 @@ CREATE TABLE `sales` (
   KEY `fk_sales_staff` (`STAFF_ID`),
   CONSTRAINT `fk_sales_patient` FOREIGN KEY (`PATIENT_ID`) REFERENCES `patient` (`PATIENT_ID`) ON DELETE CASCADE,
   CONSTRAINT `fk_sales_staff` FOREIGN KEY (`STAFF_ID`) REFERENCES `user` (`USER_ID`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- Data for table `sales`
 INSERT INTO `sales` (`SALE_ID`, `PATIENT_ID`, `STAFF_ID`, `SALE_DATE`, `TOTAL_AMOUNT`, `PAID_AMOUNT`, `PAYMENT_METHOD`, `PAYMENT_STATUS`) VALUES ('4', '1', '1', '2026-04-30 09:35:54', '630.00', '60.00', 'Card', 'Completed');
@@ -285,6 +311,7 @@ INSERT INTO `sales` (`SALE_ID`, `PATIENT_ID`, `STAFF_ID`, `SALE_DATE`, `TOTAL_AM
 INSERT INTO `sales` (`SALE_ID`, `PATIENT_ID`, `STAFF_ID`, `SALE_DATE`, `TOTAL_AMOUNT`, `PAID_AMOUNT`, `PAYMENT_METHOD`, `PAYMENT_STATUS`) VALUES ('11', '19', '1', '2026-06-22 17:53:48', '120.00', '120.00', 'Cash', 'Completed');
 INSERT INTO `sales` (`SALE_ID`, `PATIENT_ID`, `STAFF_ID`, `SALE_DATE`, `TOTAL_AMOUNT`, `PAID_AMOUNT`, `PAYMENT_METHOD`, `PAYMENT_STATUS`) VALUES ('12', '19', '1', '2026-06-22 18:07:29', '400.00', '200.00', 'Card', 'Partial');
 INSERT INTO `sales` (`SALE_ID`, `PATIENT_ID`, `STAFF_ID`, `SALE_DATE`, `TOTAL_AMOUNT`, `PAID_AMOUNT`, `PAYMENT_METHOD`, `PAYMENT_STATUS`) VALUES ('14', '18', '4', '2026-06-24 13:24:11', '120.00', '120.00', 'Cash', 'Completed');
+INSERT INTO `sales` (`SALE_ID`, `PATIENT_ID`, `STAFF_ID`, `SALE_DATE`, `TOTAL_AMOUNT`, `PAID_AMOUNT`, `PAYMENT_METHOD`, `PAYMENT_STATUS`) VALUES ('16', '18', '1', '2026-06-26 03:45:37', '180.00', '180.00', 'Cash', 'Completed');
 
 -- Table structure for table `sales_item`
 DROP TABLE IF EXISTS `sales_item`;
@@ -298,7 +325,7 @@ CREATE TABLE `sales_item` (
   KEY `fk_item_prod` (`PRODUCT_ID`),
   CONSTRAINT `fk_item_prod` FOREIGN KEY (`PRODUCT_ID`) REFERENCES `product` (`PRODUCT_ID`) ON DELETE CASCADE,
   CONSTRAINT `fk_item_sale` FOREIGN KEY (`SALE_ID`) REFERENCES `sales` (`SALE_ID`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- Data for table `sales_item`
 INSERT INTO `sales_item` (`SALES_ITEM_ID`, `SALE_ID`, `PRODUCT_ID`, `QUANTITY`) VALUES ('7', '4', '3', '1');
@@ -308,6 +335,7 @@ INSERT INTO `sales_item` (`SALES_ITEM_ID`, `SALE_ID`, `PRODUCT_ID`, `QUANTITY`) 
 INSERT INTO `sales_item` (`SALES_ITEM_ID`, `SALE_ID`, `PRODUCT_ID`, `QUANTITY`) VALUES ('16', '11', '6', '1');
 INSERT INTO `sales_item` (`SALES_ITEM_ID`, `SALE_ID`, `PRODUCT_ID`, `QUANTITY`) VALUES ('17', '12', '16', '2');
 INSERT INTO `sales_item` (`SALES_ITEM_ID`, `SALE_ID`, `PRODUCT_ID`, `QUANTITY`) VALUES ('19', '14', '6', '1');
+INSERT INTO `sales_item` (`SALES_ITEM_ID`, `SALE_ID`, `PRODUCT_ID`, `QUANTITY`) VALUES ('21', '16', '9', '1');
 
 -- Table structure for table `supplier`
 DROP TABLE IF EXISTS `supplier`;
