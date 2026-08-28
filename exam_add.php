@@ -38,12 +38,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_exam'])) {
     
     $re_sph  = mysqli_real_escape_string($conn, $_POST['re_sph']);
     $re_cyl  = mysqli_real_escape_string($conn, $_POST['re_cyl']);
-    $re_axis = mysqli_real_escape_string($conn, $_POST['re_axis']);
+    $re_axis = trim($_POST['re_axis'] ?? '');
     $re_add  = mysqli_real_escape_string($conn, $_POST['re_add']);
     
     $le_sph  = mysqli_real_escape_string($conn, $_POST['le_sph']);
     $le_cyl  = mysqli_real_escape_string($conn, $_POST['le_cyl']);
-    $le_axis = mysqli_real_escape_string($conn, $_POST['le_axis']);
+    $le_axis = trim($_POST['le_axis'] ?? '');
     $le_add  = mysqli_real_escape_string($conn, $_POST['le_add']);
     
     $pd             = mysqli_real_escape_string($conn, $_POST['pd']);
@@ -51,7 +51,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_exam'])) {
 
     if (empty($patient_id)) {
         $error = "Please select a patient.";
+    } elseif (($re_axis !== '' && (!ctype_digit($re_axis) || (int) $re_axis < 1 || (int) $re_axis > 180)) ||
+              ($le_axis !== '' && (!ctype_digit($le_axis) || (int) $le_axis < 1 || (int) $le_axis > 180))) {
+        $error = "Axis must be a whole number from 1 to 180.";
     } else {
+        $re_axis = mysqli_real_escape_string($conn, $re_axis);
+        $le_axis = mysqli_real_escape_string($conn, $le_axis);
         $sql = "INSERT INTO eye_examination 
                 (PATIENT_ID, OPTOMETRIST_ID, EXAM_DATE, VISUAL_ACUITY_RESULTS, PRESCRIPTION_RESULT, RE_SPH, RE_CYL, RE_AXIS, RE_ADD, LE_SPH, LE_CYL, LE_AXIS, LE_ADD, PD, CLINICAL_NOTES) 
                 VALUES 
@@ -159,7 +164,7 @@ $patient_result = mysqli_query($conn, $patient_query);
                         </div>
                         <div>
                             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Axis</label>
-                            <input type="text" name="re_axis" placeholder="180" class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:border-[#0097B2] outline-none font-bold text-slate-700 text-center">
+                            <input type="number" name="re_axis" min="1" max="180" step="1" placeholder="180" class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:border-[#0097B2] outline-none font-bold text-slate-700 text-center">
                         </div>
                         <div>
                             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">ADD Power</label>
@@ -183,7 +188,7 @@ $patient_result = mysqli_query($conn, $patient_query);
                         </div>
                         <div>
                             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Axis</label>
-                            <input type="text" name="le_axis" placeholder="180" class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:border-[#B9D977] outline-none font-bold text-slate-700 text-center">
+                            <input type="number" name="le_axis" min="1" max="180" step="1" placeholder="180" class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:border-[#B9D977] outline-none font-bold text-slate-700 text-center">
                         </div>
                         <div>
                             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">ADD Power</label>
@@ -233,30 +238,27 @@ $patient_result = mysqli_query($conn, $patient_query);
                 document.getElementById('patient_select').value = selectedPatientId;
             }
 
-            const opticalFields = document.querySelectorAll('input[name="re_sph"], input[name="re_cyl"], input[name="re_add"], input[name="le_sph"], input[name="le_cyl"], input[name="le_add"]');
+            const opticalFields = document.querySelectorAll('input[name="re_sph"], input[name="re_cyl"], input[name="le_sph"], input[name="le_cyl"]');
+
+            function formatOpticalValue(field) {
+                const value = field.value.trim();
+                if (value === "") return;
+
+                const numericValue = /^[-+]?\d+$/.test(value)
+                    ? parseInt(value, 10) / 100
+                    : (/^[-+]?(?:\d+\.?\d*|\.\d+)$/.test(value) ? parseFloat(value) : null);
+
+                if (numericValue !== null) {
+                    field.value = (numericValue > 0 ? '+' : '') + numericValue.toFixed(2);
+                }
+            }
 
             opticalFields.forEach(field => {
-                field.addEventListener('blur', function() {
-                    let val = this.value.trim();
-                    
-                    if (val !== "") {
-                        if (/^[-+]?\d+$/.test(val)) {
-                            let numericVal = parseInt(val) / 100;
-                            let formattedVal = numericVal.toFixed(2);
-                            
-                            if (numericVal > 0 && !formattedVal.startsWith('+')) {
-                                formattedVal = '+' + formattedVal;
-                            }
-                            this.value = formattedVal;
-                        } 
-                        else if (!isNaN(parseFloat(val))) {
-                             let numericVal = parseFloat(val);
-                             let formattedVal = numericVal.toFixed(2);
-                             if (numericVal > 0 && !formattedVal.startsWith('+')) {
-                                formattedVal = '+' + formattedVal;
-                            }
-                            this.value = formattedVal;
-                        }
+                field.addEventListener('blur', () => formatOpticalValue(field));
+                field.addEventListener('keydown', event => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        formatOpticalValue(field);
                     }
                 });
             });

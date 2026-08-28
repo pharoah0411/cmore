@@ -138,7 +138,7 @@ $filter_date = isset($_GET['date']) ? mysqli_real_escape_string($conn, $_GET['da
                     }
             ?>
             <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 flex flex-col md:flex-row md:items-center justify-between group <?php echo $border_hover; ?> transition-all duration-300">
-                <div class="flex items-center space-x-8 mb-4 md:mb-0">
+                <a href="appointment_view.php?id=<?php echo $row['APPOINTMENT_ID']; ?>" class="flex items-center space-x-8 mb-4 md:mb-0 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#0097B2]">
                     <div class="text-center bg-slate-50 p-4 rounded-[2rem] min-w-[100px] border border-slate-100 group-hover:bg-[#0097B2] group-hover:text-white transition-colors">
                         <p class="text-[10px] uppercase font-black tracking-[0.2em] opacity-60"><?php echo date('M', strtotime($row['APPOINTMENT_DATETIME'])); ?></p>
                         <p class="text-3xl font-black"><?php echo date('d', strtotime($row['APPOINTMENT_DATETIME'])); ?></p>
@@ -154,7 +154,7 @@ $filter_date = isset($_GET['date']) ? mysqli_real_escape_string($conn, $_GET['da
                             </span>
                         </div>
                     </div>
-                </div>
+                </a>
                 
                 <div class="flex items-center space-x-3">
                     <?php if($status == 'Pending' || $status == ''): ?>

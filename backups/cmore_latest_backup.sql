@@ -1,6 +1,6 @@
 -- C-More Clinical Suite Database Backup (Auto-Triggered)
--- Generated: 2026-08-25 13:21:26
--- Triggered By: hor ying huai
+-- Generated: 2026-08-28 15:45:09
+-- Triggered By: Admin User
 -- --------------------------------------------------------
 
 SET FOREIGN_KEY_CHECKS=0;
@@ -19,17 +19,18 @@ CREATE TABLE `appointment` (
   KEY `fk_appt_staff` (`STAFF_ID`),
   CONSTRAINT `fk_appt_patient` FOREIGN KEY (`PATIENT_ID`) REFERENCES `patient` (`PATIENT_ID`) ON DELETE CASCADE,
   CONSTRAINT `fk_appt_staff` FOREIGN KEY (`STAFF_ID`) REFERENCES `user` (`USER_ID`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- Data for table `appointment`
 INSERT INTO `appointment` (`APPOINTMENT_ID`, `PATIENT_ID`, `STAFF_ID`, `APPOINTMENT_DATETIME`, `STATUS`) VALUES ('3', '3', '1', '2026-06-25 18:50:00', 'Pending');
-INSERT INTO `appointment` (`APPOINTMENT_ID`, `PATIENT_ID`, `STAFF_ID`, `APPOINTMENT_DATETIME`, `STATUS`) VALUES ('6', '15', '1', '2026-05-19 16:30:00', 'Cancelled');
 INSERT INTO `appointment` (`APPOINTMENT_ID`, `PATIENT_ID`, `STAFF_ID`, `APPOINTMENT_DATETIME`, `STATUS`) VALUES ('7', '14', '1', '2026-06-27 12:00:00', 'Pending');
 INSERT INTO `appointment` (`APPOINTMENT_ID`, `PATIENT_ID`, `STAFF_ID`, `APPOINTMENT_DATETIME`, `STATUS`) VALUES ('8', '14', '1', '2026-06-23 11:00:00', 'Completed');
 INSERT INTO `appointment` (`APPOINTMENT_ID`, `PATIENT_ID`, `STAFF_ID`, `APPOINTMENT_DATETIME`, `STATUS`) VALUES ('9', '14', '1', '2026-06-18 18:00:00', 'Pending');
 INSERT INTO `appointment` (`APPOINTMENT_ID`, `PATIENT_ID`, `STAFF_ID`, `APPOINTMENT_DATETIME`, `STATUS`) VALUES ('12', '14', '1', '2026-06-23 16:50:00', 'Pending');
-INSERT INTO `appointment` (`APPOINTMENT_ID`, `PATIENT_ID`, `STAFF_ID`, `APPOINTMENT_DATETIME`, `STATUS`) VALUES ('13', '22', '1', '2026-06-26 13:48:00', 'Pending');
+INSERT INTO `appointment` (`APPOINTMENT_ID`, `PATIENT_ID`, `STAFF_ID`, `APPOINTMENT_DATETIME`, `STATUS`) VALUES ('13', '22', '1', '2026-06-26 13:48:00', 'Checked-In');
 INSERT INTO `appointment` (`APPOINTMENT_ID`, `PATIENT_ID`, `STAFF_ID`, `APPOINTMENT_DATETIME`, `STATUS`) VALUES ('14', '22', '1', '2026-06-26 11:44:00', 'Pending');
+INSERT INTO `appointment` (`APPOINTMENT_ID`, `PATIENT_ID`, `STAFF_ID`, `APPOINTMENT_DATETIME`, `STATUS`) VALUES ('15', '2', '1', '2026-08-29 11:30:00', 'Cancelled');
+INSERT INTO `appointment` (`APPOINTMENT_ID`, `PATIENT_ID`, `STAFF_ID`, `APPOINTMENT_DATETIME`, `STATUS`) VALUES ('16', '1', '1', '2026-08-29 13:30:00', 'Pending');
 
 -- Table structure for table `audit_log`
 DROP TABLE IF EXISTS `audit_log`;
@@ -41,7 +42,7 @@ CREATE TABLE `audit_log` (
   `RECORD_ID` int(11) DEFAULT NULL,
   `CREATED_AT` timestamp NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`LOG_ID`)
-) ENGINE=InnoDB AUTO_INCREMENT=123 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=139 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- Data for table `audit_log`
 INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('1', '4', 'User logged in successfully', NULL, NULL, '2026-05-28 21:04:11');
@@ -166,6 +167,22 @@ INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID
 INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('120', '3', 'User logged in successfully', NULL, NULL, '2026-08-25 18:45:01');
 INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('121', '3', 'Automatic backup completed upon staff logout', NULL, NULL, '2026-08-25 18:45:08');
 INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('122', '5', 'User logged in successfully', NULL, NULL, '2026-08-25 18:45:15');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('123', '3', 'User logged in successfully', NULL, NULL, '2026-08-28 21:05:03');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('124', '3', 'Created new clinical exam record', 'eye_examination', '8', '2026-08-28 21:12:43');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('125', '3', 'Updated clinical exam record', 'eye_examination', '8', '2026-08-28 21:13:13');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('126', '3', 'Updated clinical exam record', 'eye_examination', '8', '2026-08-28 21:13:21');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('127', '3', 'Updated clinical exam record', 'eye_examination', '8', '2026-08-28 21:13:27');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('128', '3', 'Created new clinical exam record', 'eye_examination', '9', '2026-08-28 21:17:33');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('129', '3', 'Updated clinical exam record', 'eye_examination', '9', '2026-08-28 21:18:33');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('130', '3', 'Updated clinical exam record', 'eye_examination', '8', '2026-08-28 21:18:52');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('131', '3', 'Updated clinical exam record', 'eye_examination', '8', '2026-08-28 21:19:53');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('132', '3', 'Updated clinical exam record', 'eye_examination', '8', '2026-08-28 21:25:16');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('133', '3', 'Booked new appointment', 'appointment', '15', '2026-08-28 21:31:48');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('134', '3', 'Booked new appointment', 'appointment', '16', '2026-08-28 21:32:05');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('135', '3', 'Updated appointment details', 'appointment', '16', '2026-08-28 21:34:15');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('136', '3', 'Updated appointment details', 'appointment', '15', '2026-08-28 21:35:14');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('137', '3', 'Created new clinical exam record', 'eye_examination', '10', '2026-08-28 21:40:07');
+INSERT INTO `audit_log` (`LOG_ID`, `USER_ID`, `ACTION`, `TABLE_NAME`, `RECORD_ID`, `CREATED_AT`) VALUES ('138', '3', 'Deleted clinical exam record for patient: hhrror', 'eye_examination', '8', '2026-08-28 21:44:06');
 
 -- Table structure for table `eye_examination`
 DROP TABLE IF EXISTS `eye_examination`;
@@ -191,7 +208,7 @@ CREATE TABLE `eye_examination` (
   KEY `fk_exam_optom` (`OPTOMETRIST_ID`),
   CONSTRAINT `fk_exam_optom` FOREIGN KEY (`OPTOMETRIST_ID`) REFERENCES `user` (`USER_ID`) ON DELETE CASCADE,
   CONSTRAINT `fk_exam_patient` FOREIGN KEY (`PATIENT_ID`) REFERENCES `patient` (`PATIENT_ID`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- Data for table `eye_examination`
 INSERT INTO `eye_examination` (`EXAM_ID`, `PATIENT_ID`, `OPTOMETRIST_ID`, `EXAM_DATE`, `VISUAL_ACUITY_RESULTS`, `PRESCRIPTION_RESULT`, `RE_SPH`, `RE_CYL`, `RE_AXIS`, `RE_ADD`, `LE_SPH`, `LE_CYL`, `LE_AXIS`, `LE_ADD`, `PD`, `CLINICAL_NOTES`) VALUES ('1', '1', '1', '2026-01-15', '6/12 OD, 6/9 OS', 'Myopia with Astigmatism', '-2.25', '-0.50', '180', '+1.50', '-2.00', '-0.75', '175', '+1.50', '64mm', 'Patient complains of night driving glare.');
@@ -200,6 +217,8 @@ INSERT INTO `eye_examination` (`EXAM_ID`, `PATIENT_ID`, `OPTOMETRIST_ID`, `EXAM_
 INSERT INTO `eye_examination` (`EXAM_ID`, `PATIENT_ID`, `OPTOMETRIST_ID`, `EXAM_DATE`, `VISUAL_ACUITY_RESULTS`, `PRESCRIPTION_RESULT`, `RE_SPH`, `RE_CYL`, `RE_AXIS`, `RE_ADD`, `LE_SPH`, `LE_CYL`, `LE_AXIS`, `LE_ADD`, `PD`, `CLINICAL_NOTES`) VALUES ('5', '2', '1', '2026-06-11', '', '', '', '', '', '', '', '', '', '', '', '');
 INSERT INTO `eye_examination` (`EXAM_ID`, `PATIENT_ID`, `OPTOMETRIST_ID`, `EXAM_DATE`, `VISUAL_ACUITY_RESULTS`, `PRESCRIPTION_RESULT`, `RE_SPH`, `RE_CYL`, `RE_AXIS`, `RE_ADD`, `LE_SPH`, `LE_CYL`, `LE_AXIS`, `LE_ADD`, `PD`, `CLINICAL_NOTES`) VALUES ('6', '18', '1', '2026-06-22', '', '', '-6.00', '', '', '', '-9.00', '', '', '', '', '');
 INSERT INTO `eye_examination` (`EXAM_ID`, `PATIENT_ID`, `OPTOMETRIST_ID`, `EXAM_DATE`, `VISUAL_ACUITY_RESULTS`, `PRESCRIPTION_RESULT`, `RE_SPH`, `RE_CYL`, `RE_AXIS`, `RE_ADD`, `LE_SPH`, `LE_CYL`, `LE_AXIS`, `LE_ADD`, `PD`, `CLINICAL_NOTES`) VALUES ('7', '18', '1', '2026-06-22', '', '', '', '', '', '', '', '', '', '', '', '');
+INSERT INTO `eye_examination` (`EXAM_ID`, `PATIENT_ID`, `OPTOMETRIST_ID`, `EXAM_DATE`, `VISUAL_ACUITY_RESULTS`, `PRESCRIPTION_RESULT`, `RE_SPH`, `RE_CYL`, `RE_AXIS`, `RE_ADD`, `LE_SPH`, `LE_CYL`, `LE_AXIS`, `LE_ADD`, `PD`, `CLINICAL_NOTES`) VALUES ('9', '2', '3', '2026-08-28', '', '', '', '', '', '', '', '', '', '', '56mm', 'slight cataract');
+INSERT INTO `eye_examination` (`EXAM_ID`, `PATIENT_ID`, `OPTOMETRIST_ID`, `EXAM_DATE`, `VISUAL_ACUITY_RESULTS`, `PRESCRIPTION_RESULT`, `RE_SPH`, `RE_CYL`, `RE_AXIS`, `RE_ADD`, `LE_SPH`, `LE_CYL`, `LE_AXIS`, `LE_ADD`, `PD`, `CLINICAL_NOTES`) VALUES ('10', '14', '3', '2026-08-28', '', '', '-5.00', '', '', '', '', '', '', '', '', '');
 
 -- Table structure for table `patient`
 DROP TABLE IF EXISTS `patient`;
@@ -222,12 +241,11 @@ INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRE
 INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('2', 'Daniel Sim', '920512-10-6642', '017-9876543', '45 Crystal Heights, PJ', '2026-02-10', 'Family (Wife of John)', '1 Year', 'Dry eyes and irritation after using computer');
 INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('3', 'Robert Lim', '781120-01-5231', '019-2233445', '8-2-1 Kondominium Ria, Puchong', '2026-03-05', 'Referral', '3 Months', 'Sudden flashes of light in left eye');
 INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('14', 'hhrror', '040718020390', '0195121339', 'To be updated', '2026-05-18', 'None', '6 Months', 'None');
-INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('15', 'farerere', '050506868968', '01947474779', 'Walk-in / Unrecorded', '2026-05-18', 'None', '3 Months', 'None');
 INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('18', 'aisyah', '041104020405', '012-3456789', '', '2026-06-22', 'friend', '6 Months', '');
 INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('19', 'Walk in', 'NO-IC-58750', '0000000000', 'Walk-in / Unrecorded', '2026-06-22', 'None', 'Not Set', 'None');
 INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('20', 'Hor Ying Huai', '041104020390', '055-5555555', '23, Jalan Sri klebang 27,', '2026-06-23', '', '3 Months', '');
 INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('21', 'Nur Viviana Sia', '770529045294', '019-5597448', '', '2026-06-24', 'Family', '6 Months', 'slight headache');
-INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('22', 'damia', 'NO-IC-1782438267', '019-5555555', 'Walk-in / Unrecorded', '2026-06-26', 'None', 'Not Set', 'None');
+INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('22', 'testing', '', '019-5555555', 'Walk-in / Unrecorded', '2026-06-26', 'None', '', 'None');
 INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('23', 'Test Patient', '010101-01-0101', '012-3456789', 'Melaka', '2026-08-21', 'Self', '6 Months', 'Short-sightedness');
 INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('24', 'Puteri Nur Hasnah BInti Megat Indra Shahpri', '041204076508', '011-2345678', '', '2026-08-25', '', '', '');
 INSERT INTO `patient` (`PATIENT_ID`, `NAME`, `IC_NUMBER`, `PHONE_NUMBER`, `ADDRESS`, `REGISTRATION_DATE`, `CONNECTION_RELATIONSHIP`, `FOLLOW_UP_INTERVAL`, `COMPLAINTS`) VALUES ('26', 'ainur mardiyyah', '041104040260', '012-3456789', '', '2026-08-25', '', '', '');
@@ -306,7 +324,6 @@ CREATE TABLE `sales` (
 
 -- Data for table `sales`
 INSERT INTO `sales` (`SALE_ID`, `PATIENT_ID`, `STAFF_ID`, `SALE_DATE`, `TOTAL_AMOUNT`, `PAID_AMOUNT`, `PAYMENT_METHOD`, `PAYMENT_STATUS`) VALUES ('4', '1', '1', '2026-04-30 09:35:54', '630.00', '60.00', 'Card', 'Completed');
-INSERT INTO `sales` (`SALE_ID`, `PATIENT_ID`, `STAFF_ID`, `SALE_DATE`, `TOTAL_AMOUNT`, `PAID_AMOUNT`, `PAYMENT_METHOD`, `PAYMENT_STATUS`) VALUES ('7', '15', '1', '2026-05-17 19:10:29', '110.00', '110.00', 'Card', 'Completed');
 INSERT INTO `sales` (`SALE_ID`, `PATIENT_ID`, `STAFF_ID`, `SALE_DATE`, `TOTAL_AMOUNT`, `PAID_AMOUNT`, `PAYMENT_METHOD`, `PAYMENT_STATUS`) VALUES ('8', '14', '1', '2026-05-28 12:34:06', '180.00', '175.00', 'Cash', 'Partial');
 INSERT INTO `sales` (`SALE_ID`, `PATIENT_ID`, `STAFF_ID`, `SALE_DATE`, `TOTAL_AMOUNT`, `PAID_AMOUNT`, `PAYMENT_METHOD`, `PAYMENT_STATUS`) VALUES ('11', '19', '1', '2026-06-22 17:53:48', '120.00', '120.00', 'Cash', 'Completed');
 INSERT INTO `sales` (`SALE_ID`, `PATIENT_ID`, `STAFF_ID`, `SALE_DATE`, `TOTAL_AMOUNT`, `PAID_AMOUNT`, `PAYMENT_METHOD`, `PAYMENT_STATUS`) VALUES ('12', '19', '1', '2026-06-22 18:07:29', '400.00', '200.00', 'Card', 'Partial');
@@ -330,7 +347,6 @@ CREATE TABLE `sales_item` (
 -- Data for table `sales_item`
 INSERT INTO `sales_item` (`SALES_ITEM_ID`, `SALE_ID`, `PRODUCT_ID`, `QUANTITY`) VALUES ('7', '4', '3', '1');
 INSERT INTO `sales_item` (`SALES_ITEM_ID`, `SALE_ID`, `PRODUCT_ID`, `QUANTITY`) VALUES ('8', '4', '2', '1');
-INSERT INTO `sales_item` (`SALES_ITEM_ID`, `SALE_ID`, `PRODUCT_ID`, `QUANTITY`) VALUES ('11', '7', '3', '1');
 INSERT INTO `sales_item` (`SALES_ITEM_ID`, `SALE_ID`, `PRODUCT_ID`, `QUANTITY`) VALUES ('12', '8', '9', '1');
 INSERT INTO `sales_item` (`SALES_ITEM_ID`, `SALE_ID`, `PRODUCT_ID`, `QUANTITY`) VALUES ('16', '11', '6', '1');
 INSERT INTO `sales_item` (`SALES_ITEM_ID`, `SALE_ID`, `PRODUCT_ID`, `QUANTITY`) VALUES ('17', '12', '16', '2');

@@ -75,6 +75,15 @@ $result = mysqli_query($conn, $query);
     <?php include('sidebar.php'); ?>
 
     <main class="flex-1 ml-72 h-screen overflow-y-auto p-10 custom-scrollbar">
+        <?php if(isset($_GET['msg']) && $_GET['msg'] === 'deleted'): ?>
+            <div class="bg-teal-50 text-teal-600 p-4 rounded-2xl mb-6 text-sm font-bold border border-teal-100 flex items-center">
+                <i class="fa-solid fa-circle-check mr-3"></i> Clinical exam deleted successfully.
+            </div>
+        <?php elseif(isset($_GET['msg']) && $_GET['msg'] === 'delete_error'): ?>
+            <div class="bg-red-50 text-red-600 p-4 rounded-2xl mb-6 text-sm font-bold border border-red-100 flex items-center">
+                <i class="fa-solid fa-triangle-exclamation mr-3"></i> The clinical exam could not be deleted.
+            </div>
+        <?php endif; ?>
         
         <div class="mb-10 flex flex-col md:flex-row md:justify-between md:items-end space-y-4 md:space-y-0">
             <div>
@@ -202,6 +211,14 @@ $result = mysqli_query($conn, $query);
                                                 <a href="exam_view.php?id=<?php echo $row['EXAM_ID']; ?>" class="px-4 py-2 bg-slate-50 text-[#0097B2] font-bold rounded-lg hover:bg-[#0097B2] hover:text-white transition text-xs border border-slate-200 hover:border-[#0097B2] text-center w-28">
                                                     View Details
                                                 </a>
+                                                <?php if(in_array($_SESSION['ROLE'], ['Admin', 'Optometrist'], true)): ?>
+                                                    <form method="POST" action="exam_delete.php" onsubmit="return confirm('Delete this clinical exam and prescription permanently?');" class="w-28">
+                                                        <input type="hidden" name="exam_id" value="<?php echo $row['EXAM_ID']; ?>">
+                                                        <button type="submit" name="delete_exam" class="w-full px-4 py-2 bg-red-50 text-red-500 font-bold rounded-lg hover:bg-red-500 hover:text-white transition text-xs border border-red-100">
+                                                            <i class="fa-solid fa-trash mr-1"></i> Delete
+                                                        </button>
+                                                    </form>
+                                                <?php endif; ?>
                                             <?php endif; ?>
                                             <a href="exam_add.php?patient_id=<?php echo $row['PATIENT_ID']; ?>" class="px-4 py-2 <?php echo $has_exam ? 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-100' : 'bg-[#0097B2] text-white shadow-md hover:bg-teal-600 border border-transparent'; ?> font-bold rounded-lg transition text-xs text-center w-28">
                                                 <i class="fa-solid fa-plus mr-1"></i> Add Exam

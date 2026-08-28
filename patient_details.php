@@ -66,6 +66,15 @@ $ic_info = parse_malaysian_ic($patient['IC_NUMBER']);
     <?php include('sidebar.php'); ?>
 
     <main class="flex-1 ml-72 p-12">
+        <?php if(isset($_GET['msg']) && $_GET['msg'] === 'exam_deleted'): ?>
+            <div class="bg-teal-50 text-teal-600 p-4 rounded-2xl mb-6 text-sm font-bold border border-teal-100 flex items-center">
+                <i class="fa-solid fa-circle-check mr-3"></i> Prescription history deleted successfully.
+            </div>
+        <?php elseif(isset($_GET['msg']) && $_GET['msg'] === 'delete_error'): ?>
+            <div class="bg-red-50 text-red-600 p-4 rounded-2xl mb-6 text-sm font-bold border border-red-100 flex items-center">
+                <i class="fa-solid fa-triangle-exclamation mr-3"></i> The prescription history could not be deleted.
+            </div>
+        <?php endif; ?>
         <header class="flex justify-between items-start mb-12">
             <div>
                 <a href="patients.php" class="text-slate-400 text-sm font-bold uppercase tracking-widest hover:text-[#0097B2] transition">
@@ -167,6 +176,19 @@ $ic_info = parse_malaysian_ic($patient['IC_NUMBER']);
                                     <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Exam Date</span>
                                     <p class="font-bold text-slate-800"><?php echo date('d M Y', strtotime($exam['EXAM_DATE'])); ?></p>
                                 </div>
+                                <a href="exam_view.php?id=<?php echo $exam['EXAM_ID']; ?>" class="text-xs font-black uppercase tracking-wider text-[#0097B2] hover:text-slate-900 transition flex items-center">
+                                    View Full Record <i class="fa-solid fa-arrow-right ml-2"></i>
+                                </a>
+                                <?php if(in_array($_SESSION['ROLE'], ['Admin', 'Optometrist'], true)): ?>
+                                <form method="POST" action="exam_delete.php" onsubmit="return confirm('Delete this prescription history permanently?');">
+                                    <input type="hidden" name="exam_id" value="<?php echo $exam['EXAM_ID']; ?>">
+                                    <input type="hidden" name="return_to" value="patient">
+                                    <input type="hidden" name="patient_id" value="<?php echo $id; ?>">
+                                    <button type="submit" name="delete_exam" class="text-xs font-black uppercase tracking-wider text-red-500 hover:text-red-700 transition flex items-center">
+                                        <i class="fa-solid fa-trash mr-2"></i> Delete
+                                    </button>
+                                </form>
+                                <?php endif; ?>
                             </div>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                                 <div class="bg-white p-4 rounded-2xl border border-slate-100">
@@ -177,6 +199,38 @@ $ic_info = parse_malaysian_ic($patient['IC_NUMBER']);
                                     <p class="text-[9px] font-black text-slate-400 uppercase mb-1">Visual Acuity</p>
                                     <p class="text-sm font-mono font-bold text-slate-700"><?php echo htmlspecialchars($exam['VISUAL_ACUITY_RESULTS']); ?></p>
                                 </div>
+                            </div>
+                            <div class="mt-4 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+                                <table class="w-full min-w-[520px] text-center text-sm">
+                                    <thead class="bg-slate-100 text-[9px] uppercase tracking-widest text-slate-500">
+                                        <tr>
+                                            <th class="p-3 text-left">Eye</th>
+                                            <th class="p-3">Sphere</th>
+                                            <th class="p-3">Cylinder</th>
+                                            <th class="p-3">Axis</th>
+                                            <th class="p-3">ADD</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="font-bold text-slate-700">
+                                        <tr class="border-t border-slate-100">
+                                            <td class="p-3 text-left text-[#0097B2]">Right (OD)</td>
+                                            <td class="p-3"><?php echo htmlspecialchars($exam['RE_SPH'] ?: '-'); ?></td>
+                                            <td class="p-3"><?php echo htmlspecialchars($exam['RE_CYL'] ?: '-'); ?></td>
+                                            <td class="p-3"><?php echo htmlspecialchars($exam['RE_AXIS'] ?: '-'); ?></td>
+                                            <td class="p-3"><?php echo htmlspecialchars($exam['RE_ADD'] ?: '-'); ?></td>
+                                        </tr>
+                                        <tr class="border-t border-slate-100">
+                                            <td class="p-3 text-left text-[#8db33e]">Left (OS)</td>
+                                            <td class="p-3"><?php echo htmlspecialchars($exam['LE_SPH'] ?: '-'); ?></td>
+                                            <td class="p-3"><?php echo htmlspecialchars($exam['LE_CYL'] ?: '-'); ?></td>
+                                            <td class="p-3"><?php echo htmlspecialchars($exam['LE_AXIS'] ?: '-'); ?></td>
+                                            <td class="p-3"><?php echo htmlspecialchars($exam['LE_ADD'] ?: '-'); ?></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="mt-4 flex flex-col sm:flex-row gap-4 text-sm">
+                                <p class="text-slate-500"><span class="font-black uppercase tracking-widest text-[9px]">PD:</span> <span class="font-bold text-slate-700"><?php echo htmlspecialchars($exam['PD'] ?: '-'); ?></span></p>
                             </div>
                             <?php if(!empty($exam['CLINICAL_NOTES'])): ?>
                             <div class="mt-4 px-2">

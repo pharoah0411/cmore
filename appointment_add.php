@@ -20,10 +20,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // Must be between 11:00 AM and 6:30 PM exactly
         $error = "Error: Appointments must be scheduled between 11:00 AM and 6:30 PM.";
     } else {
+        $conflict_sql = "SELECT APPOINTMENT_ID FROM appointment
+                         WHERE STAFF_ID = '$staff_id'
+                         AND APPOINTMENT_DATETIME = '$datetime'
+                         AND (STATUS IS NULL OR STATUS NOT IN ('Cancelled'))
+                         LIMIT 1";
+        $conflict_result = mysqli_query($conn, $conflict_sql);
+
+        if ($conflict_result && mysqli_num_rows($conflict_result) > 0) {
+            $error = "This staff member already has an appointment at that date and time. Please choose another slot.";
+        }
+
         $patient_id = '';
 
         // Check if the user is adding a NEW patient
-        if (isset($_POST['is_new_patient']) && $_POST['is_new_patient'] == '1') {
+        if (!isset($error) && isset($_POST['is_new_patient']) && $_POST['is_new_patient'] == '1') {
             $name = mysqli_real_escape_string($conn, $_POST['new_patient_name']);
             $phone = mysqli_real_escape_string($conn, $_POST['new_patient_phone']);
             
@@ -40,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             } else {
                 $error = "Error adding new patient: " . mysqli_error($conn);
             }
-        } else {
+        } elseif (!isset($error)) {
             // Existing patient
             $patient_id = mysqli_real_escape_string($conn, $_POST['patient_id']);
         }

@@ -1,7 +1,7 @@
 <?php
 include('config.php');
 
-if (!isset($_SESSION['ROLE']) || ($_SESSION['ROLE'] !== 'Admin' && $_SESSION['ROLE'] !== 'Optometrist')) {
+if (!isset($_SESSION['ROLE']) || !in_array($_SESSION['ROLE'], ['Admin', 'Optometrist', 'Staff'], true)) {
     header("Location: directory.php");
     exit();
 }
@@ -56,9 +56,21 @@ $exam = mysqli_fetch_assoc($result);
                 <button onclick="printPrescription()" class="px-5 py-3 bg-white text-slate-600 font-bold rounded-xl border border-slate-200 hover:bg-slate-50 transition shadow-sm flex items-center">
                     <i class="fa-solid fa-print mr-2"></i> Print Prescription
                 </button>
-                <a href="exam_edit.php?id=<?php echo $exam['EXAM_ID']; ?>" class="px-5 py-3 bg-[#0097B2] text-white font-bold rounded-xl shadow-lg shadow-teal-100 hover:scale-105 transition flex items-center">
-                    <i class="fa-solid fa-pen-to-square mr-2"></i> Edit Record
-                </a>
+                <?php if(in_array($_SESSION['ROLE'], ['Admin', 'Optometrist'], true)): ?>
+                    <a href="exam_edit.php?id=<?php echo $exam['EXAM_ID']; ?>" class="px-5 py-3 bg-[#0097B2] text-white font-bold rounded-xl shadow-lg shadow-teal-100 hover:scale-105 transition flex items-center">
+                        <i class="fa-solid fa-pen-to-square mr-2"></i> Edit Record
+                    </a>
+                <?php endif; ?>
+                <?php if(in_array($_SESSION['ROLE'], ['Admin', 'Optometrist'], true)): ?>
+                <form method="POST" action="exam_delete.php" onsubmit="return confirm('Delete this clinical exam and prescription permanently?');">
+                    <input type="hidden" name="exam_id" value="<?php echo $exam['EXAM_ID']; ?>">
+                    <input type="hidden" name="return_to" value="patient">
+                    <input type="hidden" name="patient_id" value="<?php echo $exam['PATIENT_ID']; ?>">
+                    <button type="submit" name="delete_exam" class="px-5 py-3 bg-red-50 text-red-600 font-bold rounded-xl border border-red-100 hover:bg-red-500 hover:text-white transition flex items-center">
+                        <i class="fa-solid fa-trash mr-2"></i> Delete Record
+                    </button>
+                </form>
+                <?php endif; ?>
             </div>
         </div>
 

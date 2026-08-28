@@ -28,6 +28,18 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_appointment'])) 
         // Must be exactly 11:00 AM up to 6:59 PM
         $error = "Error: Appointments must be scheduled between 11:00 AM and 7:00 PM.";
     } else {
+        $conflict_sql = "SELECT APPOINTMENT_ID FROM appointment
+                         WHERE STAFF_ID = '$staff_id'
+                         AND APPOINTMENT_DATETIME = '$datetime'
+                         AND APPOINTMENT_ID != '$id'
+                         AND (STATUS IS NULL OR STATUS NOT IN ('Cancelled'))
+                         LIMIT 1";
+        $conflict_result = mysqli_query($conn, $conflict_sql);
+
+        if ($conflict_result && mysqli_num_rows($conflict_result) > 0) {
+            $error = "This staff member already has an appointment at that date and time. Please choose another slot.";
+        }
+
         $sql = "UPDATE APPOINTMENT SET 
                 PATIENT_ID = '$patient_id', 
                 STAFF_ID = '$staff_id',
@@ -35,7 +47,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_appointment'])) 
                 STATUS = '$status' 
                 WHERE APPOINTMENT_ID = '$id'";
         
-        if(mysqli_query($conn, $sql)) {
+        if(!$error && mysqli_query($conn, $sql)) {
             systemLog($conn, "Updated appointment details", 'appointment', $id);
             header("Location: appointment.php?msg=updated");
             exit();

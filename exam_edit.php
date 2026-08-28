@@ -23,16 +23,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_exam'])) {
     
     $re_sph  = mysqli_real_escape_string($conn, $_POST['re_sph']);
     $re_cyl  = mysqli_real_escape_string($conn, $_POST['re_cyl']);
-    $re_axis = mysqli_real_escape_string($conn, $_POST['re_axis']);
+    $re_axis = trim($_POST['re_axis'] ?? '');
     $re_add  = mysqli_real_escape_string($conn, $_POST['re_add']);
     
     $le_sph  = mysqli_real_escape_string($conn, $_POST['le_sph']);
     $le_cyl  = mysqli_real_escape_string($conn, $_POST['le_cyl']);
-    $le_axis = mysqli_real_escape_string($conn, $_POST['le_axis']);
+    $le_axis = trim($_POST['le_axis'] ?? '');
     $le_add  = mysqli_real_escape_string($conn, $_POST['le_add']);
     
     $pd             = mysqli_real_escape_string($conn, $_POST['pd']);
     $clinical_notes = mysqli_real_escape_string($conn, $_POST['clinical_notes']);
+
+    if (($re_axis !== '' && (!ctype_digit($re_axis) || (int) $re_axis < 1 || (int) $re_axis > 180)) ||
+        ($le_axis !== '' && (!ctype_digit($le_axis) || (int) $le_axis < 1 || (int) $le_axis > 180))) {
+        $error = "Axis must be a whole number from 1 to 180.";
+    } else {
+        $re_axis = mysqli_real_escape_string($conn, $re_axis);
+        $le_axis = mysqli_real_escape_string($conn, $le_axis);
+    }
 
     $sql = "UPDATE eye_examination SET 
             VISUAL_ACUITY_RESULTS = '$visual_acuity', PRESCRIPTION_RESULT = '$prescription', 
@@ -41,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_exam'])) {
             PD = '$pd', CLINICAL_NOTES = '$clinical_notes' 
             WHERE EXAM_ID = '$exam_id'";
             
-    if (mysqli_query($conn, $sql)) {
+    if (!$error && mysqli_query($conn, $sql)) {
         systemLog($conn, 'Updated clinical exam record', 'eye_examination', $exam_id);
         header("Location: exam_view.php?id=" . $exam_id . "&msg=updated");
         exit();
@@ -76,11 +84,21 @@ if (!$exam) {
 
     <main class="flex-1 ml-72 h-screen overflow-y-auto p-10 custom-scrollbar">
         
-        <div class="mb-8">
-            <a href="exam_view.php?id=<?php echo $exam_id; ?>" class="text-sm font-bold text-slate-400 hover:text-[#0097B2] transition flex items-center mb-2">
-                <i class="fa-solid fa-arrow-left mr-2"></i> Cancel Editing
-            </a>
-            <h1 class="text-3xl font-black tracking-tight text-slate-900">Edit Exam: <?php echo htmlspecialchars($exam['PATIENT_NAME']); ?></h1>
+        <div class="mb-8 flex justify-between items-start">
+            <div>
+                <a href="exam_view.php?id=<?php echo $exam_id; ?>" class="text-sm font-bold text-slate-400 hover:text-[#0097B2] transition flex items-center mb-2">
+                    <i class="fa-solid fa-arrow-left mr-2"></i> Cancel Editing
+                </a>
+                <h1 class="text-3xl font-black tracking-tight text-slate-900">Edit Exam: <?php echo htmlspecialchars($exam['PATIENT_NAME']); ?></h1>
+            </div>
+            <form method="POST" action="exam_delete.php" onsubmit="return confirm('Delete this clinical exam and prescription permanently?');">
+                <input type="hidden" name="exam_id" value="<?php echo $exam['EXAM_ID']; ?>">
+                <input type="hidden" name="return_to" value="patient">
+                <input type="hidden" name="patient_id" value="<?php echo $exam['PATIENT_ID']; ?>">
+                <button type="submit" name="delete_exam" class="px-5 py-3 bg-red-50 text-red-600 font-bold rounded-xl border border-red-100 hover:bg-red-500 hover:text-white transition flex items-center">
+                    <i class="fa-solid fa-trash mr-2"></i> Delete Record
+                </button>
+            </form>
         </div>
 
         <?php if($error): ?>
@@ -114,7 +132,7 @@ if (!$exam) {
                         </div>
                         <div>
                             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400">Axis</label>
-                            <input type="text" name="re_axis" value="<?php echo htmlspecialchars($exam['RE_AXIS']); ?>" class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:border-[#0097B2] outline-none font-bold text-slate-700 text-center">
+                            <input type="number" name="re_axis" min="1" max="180" step="1" value="<?php echo htmlspecialchars($exam['RE_AXIS']); ?>" class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:border-[#0097B2] outline-none font-bold text-slate-700 text-center">
                         </div>
                         <div>
                             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400">ADD Power</label>
@@ -136,7 +154,7 @@ if (!$exam) {
                         </div>
                         <div>
                             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400">Axis</label>
-                            <input type="text" name="le_axis" value="<?php echo htmlspecialchars($exam['LE_AXIS']); ?>" class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:border-[#B9D977] outline-none font-bold text-slate-700 text-center">
+                            <input type="number" name="le_axis" min="1" max="180" step="1" value="<?php echo htmlspecialchars($exam['LE_AXIS']); ?>" class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:border-[#B9D977] outline-none font-bold text-slate-700 text-center">
                         </div>
                         <div>
                             <label class="text-[10px] font-black uppercase tracking-widest text-slate-400">ADD Power</label>
@@ -176,30 +194,27 @@ if (!$exam) {
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            const opticalFields = document.querySelectorAll('input[name="re_sph"], input[name="re_cyl"], input[name="re_add"], input[name="le_sph"], input[name="le_cyl"], input[name="le_add"]');
+            const opticalFields = document.querySelectorAll('input[name="re_sph"], input[name="re_cyl"], input[name="le_sph"], input[name="le_cyl"]');
+
+            function formatOpticalValue(field) {
+                const value = field.value.trim();
+                if (value === "") return;
+
+                const numericValue = /^[-+]?\d+$/.test(value)
+                    ? parseInt(value, 10) / 100
+                    : (/^[-+]?(?:\d+\.?\d*|\.\d+)$/.test(value) ? parseFloat(value) : null);
+
+                if (numericValue !== null) {
+                    field.value = (numericValue > 0 ? '+' : '') + numericValue.toFixed(2);
+                }
+            }
 
             opticalFields.forEach(field => {
-                field.addEventListener('blur', function() {
-                    let val = this.value.trim();
-                    
-                    if (val !== "") {
-                        if (/^[-+]?\d+$/.test(val)) {
-                            let numericVal = parseInt(val) / 100;
-                            let formattedVal = numericVal.toFixed(2);
-                            
-                            if (numericVal > 0 && !formattedVal.startsWith('+')) {
-                                formattedVal = '+' + formattedVal;
-                            }
-                            this.value = formattedVal;
-                        } 
-                        else if (!isNaN(parseFloat(val))) {
-                             let numericVal = parseFloat(val);
-                             let formattedVal = numericVal.toFixed(2);
-                             if (numericVal > 0 && !formattedVal.startsWith('+')) {
-                                formattedVal = '+' + formattedVal;
-                            }
-                            this.value = formattedVal;
-                        }
+                field.addEventListener('blur', () => formatOpticalValue(field));
+                field.addEventListener('keydown', event => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        formatOpticalValue(field);
                     }
                 });
             });
