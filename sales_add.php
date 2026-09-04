@@ -36,75 +36,100 @@ if(isset($_POST['ajax_add_patient'])) {
 // ==========================================
 
 if(isset($_POST['process_sale'])) {
-    $patient_id_raw = mysqli_real_escape_string($conn, $_POST['patient_id']);
-    // Handle empty or walk-in patient selection as NULL for walk-in customers
-    $patient_id = (!empty($patient_id_raw) && $patient_id_raw !== 'walkin') ? "'$patient_id_raw'" : "NULL"; 
-    
-    $staff_id = mysqli_real_escape_string($conn, $_POST['staff_id']);
-    $payment_method = mysqli_real_escape_string($conn, $_POST['payment_method']);
-    
-    $paid_amount = floatval($_POST['paid_amount']);
-    $total_amount = floatval($_POST['total_amount']);
-    
-    // SERVER-SIDE CAP: Ensure paid amount never exceeds total amount
-    if ($paid_amount > $total_amount) {
-        $paid_amount = $total_amount;
+    $patient_id_raw = trim((string)($_POST['patient_id'] ?? ''));
+    $patient_id = ($patient_id_raw !== '' && $patient_id_raw !== 'walkin') ? (int)$patient_id_raw : null;
+    $staff_id = (int)($_POST['staff_id'] ?? 0);
+    $payment_method = $_POST['payment_method'] ?? '';
+    $allowed_payment_methods = ['Cash', 'Card', 'Online Banking', 'E-wallet'];
+    $paid_amount = max(0, round((float)($_POST['paid_amount'] ?? 0), 2));
+    $product_ids = isset($_POST['product_id']) && is_array($_POST['product_id']) ? $_POST['product_id'] : [];
+    $quantities = isset($_POST['quantity']) && is_array($_POST['quantity']) ? $_POST['quantity'] : [];
+    $custom_prices = isset($_POST['custom_price']) && is_array($_POST['custom_price']) ? $_POST['custom_price'] : [];
+
+    // Combine duplicate product rows before locking and charging stock.
+    $requested_items = [];
+    foreach ($product_ids as $i => $raw_product_id) {
+        $product_id = (int)$raw_product_id;
+        $quantity = (int)($quantities[$i] ?? 0);
+        if ($product_id <= 0 || $quantity <= 0) continue;
+        $requested_items[$product_id]['quantity'] = ($requested_items[$product_id]['quantity'] ?? 0) + $quantity;
+        $requested_items[$product_id]['custom_price'] = trim((string)($custom_prices[$i] ?? ''));
     }
-    
-    if ($paid_amount >= $total_amount && $total_amount > 0) {
-        $payment_status = 'Completed';
-    } elseif ($paid_amount > 0 && $paid_amount < $total_amount) {
-        $payment_status = 'Partial';
+
+    if ($staff_id <= 0 || !in_array($payment_method, $allowed_payment_methods, true) || empty($requested_items)) {
+        $page_error = 'Please select a staff member, payment method, and at least one valid product.';
     } else {
-        $payment_status = 'Pending';
-    }
+        ksort($requested_items, SORT_NUMERIC);
+        $sale_id = 0;
+        $sale_date = date('Y-m-d H:i:s');
+        $server_total = 0.0;
 
-    $sale_date = date('Y-m-d H:i:s');
+        try {
+            mysqli_begin_transaction($conn);
 
-    // Retrieve products and quantities from POST for server-side validation
-    $product_ids = isset($_POST['product_id']) ? $_POST['product_id'] : [];
-    $quantities = isset($_POST['quantity']) ? $_POST['quantity'] : [];
+            $product_stmt = mysqli_prepare($conn, "SELECT BRAND_NAME, STOCK_QUANTITY, UNIT_PRICE, MINIMUM_PRICE FROM PRODUCT WHERE PRODUCT_ID = ? FOR UPDATE");
+            if (!$product_stmt) throw new RuntimeException(mysqli_error($conn));
 
-    $invalid_items = [];
-    for($i = 0; $i < count($product_ids); $i++) {
-        $pid = mysqli_real_escape_string($conn, $product_ids[$i]);
-        $qty = intval($quantities[$i]);
-        if(empty($pid) || $qty <= 0) continue;
+            foreach ($requested_items as $product_id => &$item) {
+                mysqli_stmt_bind_param($product_stmt, 'i', $product_id);
+                if (!mysqli_stmt_execute($product_stmt)) throw new RuntimeException(mysqli_stmt_error($product_stmt));
+                $product_result = mysqli_stmt_get_result($product_stmt);
+                $product = mysqli_fetch_assoc($product_result);
+                if (!$product) throw new RuntimeException("Product ID $product_id was not found.");
 
-        $prod_check = mysqli_query($conn, "SELECT STOCK_QUANTITY, BRAND_NAME FROM PRODUCT WHERE PRODUCT_ID = '$pid'");
-        $prod_row = mysqli_fetch_assoc($prod_check);
-        $available = $prod_row ? intval($prod_row['STOCK_QUANTITY']) : 0;
-        $brand = $prod_row ? $prod_row['BRAND_NAME'] : ('ID ' . $pid);
-        if ($qty > $available) {
-            $invalid_items[] = "$brand: requested $qty, available $available";
-        }
-    }
+                $quantity = $item['quantity'];
+                if ($quantity > (int)$product['STOCK_QUANTITY']) {
+                    throw new RuntimeException($product['BRAND_NAME'] . ': requested ' . $quantity . ', available ' . $product['STOCK_QUANTITY']);
+                }
 
-    if (!empty($invalid_items)) {
-        // Do not create the sale; show an error on the page
-        $page_error = 'Insufficient stock for: ' . implode('; ', $invalid_items);
-    } else {
-        // Proceed to insert sale
-        $insert_sale = "INSERT INTO SALES (PATIENT_ID, STAFF_ID, SALE_DATE, TOTAL_AMOUNT, PAID_AMOUNT, PAYMENT_METHOD, PAYMENT_STATUS) 
-                        VALUES ($patient_id, '$staff_id', '$sale_date', '$total_amount', '$paid_amount', '$payment_method', '$payment_status')";
-        
-        if(mysqli_query($conn, $insert_sale)) {
+                $unit_price = (float)$product['UNIT_PRICE'];
+                if ($item['custom_price'] !== '') {
+                    $custom_price = round((float)$item['custom_price'], 2);
+                    if ($custom_price < (float)$product['MINIMUM_PRICE']) {
+                        throw new RuntimeException($product['BRAND_NAME'] . ': price cannot be below RM ' . number_format($product['MINIMUM_PRICE'], 2));
+                    }
+                    $unit_price = $custom_price;
+                }
+
+                $item['unit_price'] = $unit_price;
+                $item['brand_name'] = $product['BRAND_NAME'];
+                $server_total += $unit_price * $quantity;
+            }
+            unset($item);
+            mysqli_stmt_close($product_stmt);
+
+            $server_total = round($server_total, 2);
+            $paid_amount = min($paid_amount, $server_total);
+            $payment_status = $paid_amount >= $server_total ? 'Completed' : ($paid_amount > 0 ? 'Partial' : 'Pending');
+
+            $sale_stmt = mysqli_prepare($conn, "INSERT INTO SALES (PATIENT_ID, STAFF_ID, SALE_DATE, TOTAL_AMOUNT, PAID_AMOUNT, PAYMENT_METHOD, PAYMENT_STATUS) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            if (!$sale_stmt) throw new RuntimeException(mysqli_error($conn));
+            mysqli_stmt_bind_param($sale_stmt, 'iisddss', $patient_id, $staff_id, $sale_date, $server_total, $paid_amount, $payment_method, $payment_status);
+            if (!mysqli_stmt_execute($sale_stmt)) throw new RuntimeException(mysqli_stmt_error($sale_stmt));
             $sale_id = mysqli_insert_id($conn);
+            mysqli_stmt_close($sale_stmt);
 
-            for($i = 0; $i < count($product_ids); $i++) {
-                $pid = mysqli_real_escape_string($conn, $product_ids[$i]);
-                $qty = intval($quantities[$i]);
+            $item_stmt = mysqli_prepare($conn, "INSERT INTO SALES_ITEM (SALE_ID, PRODUCT_ID, QUANTITY) VALUES (?, ?, ?)");
+            $stock_stmt = mysqli_prepare($conn, "UPDATE PRODUCT SET STOCK_QUANTITY = STOCK_QUANTITY - ? WHERE PRODUCT_ID = ? AND STOCK_QUANTITY >= ?");
+            if (!$item_stmt || !$stock_stmt) throw new RuntimeException(mysqli_error($conn));
 
-                if(!empty($pid) && $qty > 0) {
-                    mysqli_query($conn, "INSERT INTO SALES_ITEM (SALE_ID, PRODUCT_ID, QUANTITY) VALUES ('$sale_id', '$pid', '$qty')");
-                    mysqli_query($conn, "UPDATE PRODUCT SET STOCK_QUANTITY = STOCK_QUANTITY - $qty WHERE PRODUCT_ID = '$pid'");
+            foreach ($requested_items as $product_id => $item) {
+                $quantity = $item['quantity'];
+                mysqli_stmt_bind_param($item_stmt, 'iii', $sale_id, $product_id, $quantity);
+                if (!mysqli_stmt_execute($item_stmt)) throw new RuntimeException(mysqli_stmt_error($item_stmt));
+                mysqli_stmt_bind_param($stock_stmt, 'iii', $quantity, $product_id, $quantity);
+                if (!mysqli_stmt_execute($stock_stmt) || mysqli_stmt_affected_rows($stock_stmt) !== 1) {
+                    throw new RuntimeException('Stock changed before checkout completed for ' . $item['brand_name'] . '.');
                 }
             }
+            mysqli_stmt_close($item_stmt);
+            mysqli_stmt_close($stock_stmt);
+            mysqli_commit($conn);
             header("Location: sales.php?new_sale_id=$sale_id");
             exit();
-        } else {
-            // CATCH AND DISPLAY THE ERROR IF SALE FAILS
-            $page_error = mysqli_error($conn);
+        } catch (Throwable $exception) {
+            mysqli_rollback($conn);
+            $page_error = 'Sale cancelled: ' . $exception->getMessage();
         }
     }
 }

@@ -196,7 +196,119 @@
     </div>
 </aside>
 
+<!-- ================= FLOATING AI ASSISTANT ================= -->
+<div id="ai-assistant" class="fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-3">
+    <section id="ai-panel" class="hidden w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/20">
+        <div class="flex items-center justify-between bg-[#0f172a] px-4 py-3 text-white">
+            <div class="flex items-center gap-3">
+                <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-[#0097B2] shadow-lg shadow-[#0097B2]/30">
+                    <i class="fa-solid fa-wand-magic-sparkles text-sm"></i>
+                </span>
+                <div>
+                    <h2 class="text-sm font-bold">C-More Assistant</h2>
+                    <p class="text-[10px] uppercase tracking-wider text-slate-400">Clinic insights</p>
+                </div>
+            </div>
+            <button type="button" id="ai-close" class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-white/10 hover:text-white" aria-label="Close assistant">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <div id="ai-messages" class="flex h-72 flex-col gap-3 overflow-y-auto bg-slate-50 p-4 text-sm">
+            <div class="max-w-[90%] self-start rounded-2xl rounded-tl-sm bg-white px-3 py-2.5 text-slate-700 shadow-sm">
+                Hi. Ask me about patients, prescriptions, stock, appointments, billing, or suppliers.
+            </div>
+        </div>
+
+        <form id="ai-form" class="flex gap-2 border-t border-slate-200 bg-white p-3">
+            <label for="ai-input" class="sr-only">Ask the clinic assistant</label>
+            <input id="ai-input" type="text" autocomplete="off" placeholder="Ask the clinic assistant..." class="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#0097B2] focus:ring-2 focus:ring-[#0097B2]/20">
+            <button type="submit" class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#0097B2] text-white transition hover:bg-[#007f96] disabled:cursor-not-allowed disabled:opacity-50" aria-label="Send message">
+                <i class="fa-solid fa-paper-plane text-sm"></i>
+            </button>
+        </form>
+    </section>
+
+    <button type="button" id="ai-toggle" class="flex h-14 w-14 items-center justify-center rounded-full bg-[#0097B2] text-white shadow-xl shadow-[#0097B2]/30 transition duration-200 hover:scale-105 hover:bg-[#007f96] focus:outline-none focus:ring-4 focus:ring-[#0097B2]/30" aria-label="Open AI assistant" aria-expanded="false">
+        <i class="fa-solid fa-wand-magic-sparkles text-xl"></i>
+    </button>
+</div>
+
 <script>
+    (function() {
+        const toggle = document.getElementById('ai-toggle');
+        const close = document.getElementById('ai-close');
+        const panel = document.getElementById('ai-panel');
+        const form = document.getElementById('ai-form');
+        const input = document.getElementById('ai-input');
+        const messages = document.getElementById('ai-messages');
+        const sendButton = form.querySelector('button[type="submit"]');
+        const storageKey = 'cmore-ai-conversation';
+
+        function setPanelOpen(isOpen) {
+            panel.classList.toggle('hidden', !isOpen);
+            toggle.setAttribute('aria-expanded', String(isOpen));
+            if (isOpen) input.focus();
+        }
+
+        function addMessage(content, isUser) {
+            const message = document.createElement('div');
+            message.className = isUser
+                ? 'max-w-[90%] self-end rounded-2xl rounded-tr-sm bg-[#0097B2] px-3 py-2.5 text-white shadow-sm'
+                : 'max-w-[90%] self-start rounded-2xl rounded-tl-sm bg-white px-3 py-2.5 text-slate-700 shadow-sm';
+            message.innerHTML = isUser ? document.createTextNode(content).textContent : content;
+            messages.appendChild(message);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function saveConversation() {
+            sessionStorage.setItem(storageKey, messages.innerHTML);
+        }
+
+        const savedConversation = sessionStorage.getItem(storageKey);
+        if (savedConversation) messages.innerHTML = savedConversation;
+
+        toggle.addEventListener('click', function() {
+            setPanelOpen(panel.classList.contains('hidden'));
+        });
+        close.addEventListener('click', function() {
+            setPanelOpen(false);
+        });
+
+        form.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const query = input.value.trim();
+            if (!query) return;
+
+            addMessage(query, true);
+            input.value = '';
+            input.disabled = true;
+            sendButton.disabled = true;
+            addMessage('Thinking...', false);
+            const thinkingMessage = messages.lastElementChild;
+
+            try {
+                const response = await fetch('ai_assistant_handler.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query })
+                });
+                const data = await response.json();
+                thinkingMessage.remove();
+                addMessage(data.reply || 'I could not produce a response.', false);
+                if (data.redirect_url) window.location.href = data.redirect_url;
+                saveConversation();
+            } catch (error) {
+                thinkingMessage.textContent = 'I could not reach the assistant. Please try again.';
+                saveConversation();
+            } finally {
+                input.disabled = false;
+                sendButton.disabled = false;
+                input.focus();
+            }
+        });
+    })();
+
     function updateLiveClock() {
         const now = new Date();
         let hours = now.getHours();
@@ -230,12 +342,6 @@
     ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'].forEach(evt => window.addEventListener(evt, resetIdleTimer, false));
     resetIdleTimer();
 
-    // ---- Invisible Auto-Backup Beacon when Browser Tab is Closed ----
-    window.addEventListener('visibilitychange', function() {
-        if (document.visibilityState === 'hidden') {
-            navigator.sendBeacon('auto_backup.php?bg=true');
-        }
-    });
 </script>
 
 <style>

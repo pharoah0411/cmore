@@ -1,4 +1,37 @@
 <?php include('config.php'); ?>
+<?php include_once('recall_helpers.php'); ?>
+<?php
+$recall_rows = get_due_recall_rows($conn);
+$recall_priority = 0;
+$recall_contactable = 0;
+$recall_no_phone = 0;
+foreach ($recall_rows as $recall_row) {
+    if (empty($recall_row['PHONE_NUMBER'])) {
+        $recall_no_phone++;
+        continue;
+    }
+    $days_overdue = max(0, (new DateTimeImmutable('today'))->diff(new DateTimeImmutable($recall_row['recall_date']))->days);
+    $recall_contactable++;
+    if ($days_overdue >= 90) $recall_priority++;
+}
+
+$market_categories = [];
+$category_result = mysqli_query($conn, "SELECT COALESCE(NULLIF(p.CATEGORY, ''), 'Other') AS category, SUM(si.QUANTITY) AS units, SUM(si.QUANTITY * p.UNIT_PRICE) AS revenue FROM SALES_ITEM si JOIN PRODUCT p ON p.PRODUCT_ID = si.PRODUCT_ID JOIN SALES s ON s.SALE_ID = si.SALE_ID GROUP BY p.CATEGORY ORDER BY revenue DESC");
+if ($category_result) {
+    while ($category_row = mysqli_fetch_assoc($category_result)) $market_categories[] = $category_row;
+}
+$top_category = $market_categories[0] ?? ['category' => 'No sales data', 'units' => 0, 'revenue' => 0];
+$category_revenue_total = array_sum(array_map(function ($row) { return (float)$row['revenue']; }, $market_categories));
+$top_product = ['name' => 'No sales data', 'units' => 0];
+$top_product_result = mysqli_query($conn, "SELECT p.BRAND_NAME AS name, SUM(si.QUANTITY) AS units FROM SALES_ITEM si JOIN PRODUCT p ON p.PRODUCT_ID = si.PRODUCT_ID GROUP BY p.PRODUCT_ID, p.BRAND_NAME ORDER BY units DESC LIMIT 1");
+if ($top_product_result && ($top_product_row = mysqli_fetch_assoc($top_product_result))) $top_product = $top_product_row;
+$repeat_customers = 0;
+$repeat_result = mysqli_query($conn, "SELECT COUNT(*) AS total FROM (SELECT PATIENT_ID FROM SALES WHERE PATIENT_ID IS NOT NULL GROUP BY PATIENT_ID HAVING COUNT(*) >= 2) repeat_customers");
+if ($repeat_result) $repeat_customers = (int)mysqli_fetch_assoc($repeat_result)['total'];
+$unconverted_patients = 0;
+$unconverted_result = mysqli_query($conn, "SELECT COUNT(*) AS total FROM PATIENT p LEFT JOIN SALES s ON s.PATIENT_ID = p.PATIENT_ID WHERE s.SALE_ID IS NULL");
+if ($unconverted_result) $unconverted_patients = (int)mysqli_fetch_assoc($unconverted_result)['total'];
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -179,6 +212,105 @@
             </div>
         </div>
 
+        <!-- ================= RECALL INTELLIGENCE ================= -->
+        <section class="mb-12 overflow-hidden rounded-[2.5rem] bg-slate-900 p-8 text-white shadow-2xl reveal">
+            <div class="relative z-10 flex flex-col gap-8 xl:flex-row xl:items-center xl:justify-between">
+                <div class="max-w-xl">
+                    <div class="flex items-center gap-3">
+                        <span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#B9D977] text-slate-900"><i class="fa-solid fa-bullseye"></i></span>
+                        <div>
+                            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-[#B9D977]">Outreach Intelligence</p>
+                            <h2 class="mt-1 text-2xl font-black tracking-tight">Turn recall data into action</h2>
+                        </div>
+                    </div>
+                    <p class="mt-4 text-sm leading-relaxed text-slate-300">Your recall audience is automatically grouped by urgency and contactability. Start with patients overdue 90+ days, then work through the remaining due list.</p>
+                    <div class="mt-6 flex flex-wrap gap-3">
+                        <a href="report_recall.php?segment=priority" class="inline-flex items-center gap-2 rounded-xl bg-[#B9D977] px-4 py-3 text-xs font-black text-slate-900 transition hover:bg-white"><i class="fa-solid fa-bolt"></i> Priority List</a>
+                        <a href="whatsapp_messages.php" class="inline-flex items-center gap-2 rounded-xl border border-white/20 px-4 py-3 text-xs font-black text-white transition hover:bg-white/10"><i class="fa-brands fa-whatsapp"></i> WhatsApp Desk</a>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:min-w-[560px]">
+                    <a href="report_recall.php?segment=all" class="rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:bg-white/10">
+                        <p class="text-[9px] font-black uppercase tracking-widest text-slate-400">Due</p>
+                        <p class="mt-2 text-3xl font-black text-white"><?php echo number_format(count($recall_rows)); ?></p>
+                    </a>
+                    <a href="report_recall.php?segment=priority" class="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-5 transition hover:bg-amber-400/20">
+                        <p class="text-[9px] font-black uppercase tracking-widest text-amber-200">Priority</p>
+                        <p class="mt-2 text-3xl font-black text-amber-100"><?php echo number_format($recall_priority); ?></p>
+                    </a>
+                    <a href="report_recall.php?segment=recent" class="rounded-2xl border border-green-400/20 bg-green-400/10 p-5 transition hover:bg-green-400/20">
+                        <p class="text-[9px] font-black uppercase tracking-widest text-green-200">Contactable</p>
+                        <p class="mt-2 text-3xl font-black text-green-100"><?php echo number_format($recall_contactable); ?></p>
+                    </a>
+                    <a href="report_recall.php?segment=no_phone" class="rounded-2xl border border-red-400/20 bg-red-400/10 p-5 transition hover:bg-red-400/20">
+                        <p class="text-[9px] font-black uppercase tracking-widest text-red-200">Missing Phone</p>
+                        <p class="mt-2 text-3xl font-black text-red-100"><?php echo number_format($recall_no_phone); ?></p>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= MARKET INTELLIGENCE ================= -->
+        <section class="mb-12 rounded-[2.5rem] border border-slate-100 bg-white p-8 shadow-xl shadow-slate-200/40 reveal">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between mb-8">
+                <div>
+                    <p class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2]">Market Intelligence</p>
+                    <h2 class="mt-2 text-2xl font-black tracking-tight text-slate-900">Who is buying from C-More?</h2>
+                    <p class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500">Use actual sales behaviour to decide what to promote, which audience to follow up with, and where the next campaign should focus.</p>
+                </div>
+                <button type="button" onclick="openMarketAssistant()" class="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0097B2] px-4 py-3 text-xs font-black text-white shadow-lg shadow-teal-100 transition hover:bg-[#007f96]"><i class="fa-solid fa-wand-magic-sparkles"></i> Ask AI About This</button>
+            </div>
+
+            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4 mb-8">
+                <div class="rounded-2xl bg-teal-50 p-5">
+                    <p class="text-[9px] font-black uppercase tracking-widest text-[#0097B2]">Leading Category</p>
+                    <p class="mt-2 truncate text-xl font-black text-slate-900"><?php echo htmlspecialchars($top_category['category']); ?></p>
+                    <p class="mt-1 text-xs font-bold text-slate-500">RM <?php echo number_format((float)$top_category['revenue'], 2); ?> attributed revenue</p>
+                </div>
+                <div class="rounded-2xl bg-lime-50 p-5">
+                    <p class="text-[9px] font-black uppercase tracking-widest text-[#85a643]">Top Product</p>
+                    <p class="mt-2 truncate text-xl font-black text-slate-900"><?php echo htmlspecialchars($top_product['name']); ?></p>
+                    <p class="mt-1 text-xs font-bold text-slate-500"><?php echo number_format((int)$top_product['units']); ?> units sold</p>
+                </div>
+                <div class="rounded-2xl bg-amber-50 p-5">
+                    <p class="text-[9px] font-black uppercase tracking-widest text-amber-600">Repeat Customers</p>
+                    <p class="mt-2 text-3xl font-black text-slate-900"><?php echo number_format($repeat_customers); ?></p>
+                    <p class="mt-1 text-xs font-bold text-slate-500">Patients with two or more sales</p>
+                </div>
+                <div class="rounded-2xl bg-rose-50 p-5">
+                    <p class="text-[9px] font-black uppercase tracking-widest text-rose-500">Untapped Patients</p>
+                    <p class="mt-2 text-3xl font-black text-slate-900"><?php echo number_format($unconverted_patients); ?></p>
+                    <p class="mt-1 text-xs font-bold text-slate-500">Registered with no recorded sale</p>
+                </div>
+            </div>
+
+            <div class="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+                <div>
+                    <div class="mb-4 flex items-center justify-between">
+                        <h3 class="text-sm font-black uppercase tracking-widest text-slate-500">Category demand</h3>
+                        <span class="text-xs font-bold text-slate-400">By attributed sales revenue</span>
+                    </div>
+                    <div class="space-y-4">
+                        <?php foreach(array_slice($market_categories, 0, 5) as $category):
+                            $share = $category_revenue_total > 0 ? ((float)$category['revenue'] / $category_revenue_total) * 100 : 0;
+                        ?>
+                        <div>
+                            <div class="mb-1 flex justify-between text-xs font-bold text-slate-600"><span><?php echo htmlspecialchars($category['category']); ?></span><span><?php echo number_format($share, 1); ?>%</span></div>
+                            <div class="h-2 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full bg-[#0097B2]" style="width: <?php echo min(100, max(0, $share)); ?>%"></div></div>
+                        </div>
+                        <?php endforeach; ?>
+                        <?php if(empty($market_categories)): ?><p class="text-sm text-slate-400">Sales data will appear here after the first completed sale.</p><?php endif; ?>
+                    </div>
+                </div>
+                <div class="rounded-2xl bg-slate-50 p-6">
+                    <p class="text-[9px] font-black uppercase tracking-widest text-[#0097B2]">Campaign Direction</p>
+                    <h3 class="mt-3 text-lg font-black text-slate-900">Promote <?php echo htmlspecialchars($top_category['category']); ?> first.</h3>
+                    <p class="mt-2 text-sm leading-relaxed text-slate-500">Pair your strongest category with a recall campaign for repeat customers, then use the untapped patient count to plan a welcome or first-purchase offer.</p>
+                    <a href="report_products.php" class="mt-5 inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-[#0097B2] hover:text-slate-900">View product performance <i class="fa-solid fa-arrow-right"></i></a>
+                </div>
+            </div>
+        </section>
+
         <!-- ================= PRE-CONFIGURED REPORTS ================= -->
         <div class="flex flex-wrap items-center justify-between gap-4 mb-6 mt-12">
             <h3 class="text-sm font-black uppercase tracking-[0.2em] text-slate-400 ml-2">Pre-configured Reports</h3>
@@ -224,12 +356,12 @@
                 </div>
             </a>
 
-            <a href="report_recall.php" data-name="patient recall list follow-up exams" class="report-card bg-white p-8 rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/30 group hover:border-purple-400 transition-all cursor-pointer block">
+            <a href="report_recall.php" data-name="patient recall list follow-up exams outreach target market whatsapp priority" class="report-card bg-white p-8 rounded-[2rem] border border-slate-100 shadow-lg shadow-slate-200/30 group hover:border-purple-400 transition-all cursor-pointer block">
                 <div class="w-14 h-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-2xl mb-6 group-hover:bg-purple-600 group-hover:text-white transition-colors shadow-sm">
                     <i class="fa-solid fa-users-viewfinder"></i>
                 </div>
                 <h3 class="text-lg font-bold text-slate-800 mb-2">Patient Recall List</h3>
-                <p class="text-sm text-slate-500 font-medium leading-relaxed mb-6 h-10">List of patients due for their 6-month or 1-year follow-up exams.</p>
+                <p class="text-sm text-slate-500 font-medium leading-relaxed mb-6 h-10">Personalised recall dates, outreach segments, contactability, and WhatsApp actions.</p>
                 <div class="flex items-center text-[10px] font-black uppercase text-purple-600 tracking-widest group-hover:translate-x-2 transition-transform">
                     Generate <i class="fa-solid fa-arrow-right ml-2"></i>
                 </div>
@@ -266,7 +398,7 @@
     /* =========================================================================
        INTERACTIVE REVENUE WIDGET
        Replace the numbers in REVENUE_DATA with values injected from PHP, e.g.:
-         const REVENUE_DATA = <?php echo json_encode($revenueData); ?>;
+         const REVENUE_DATA = { labels: [...], gross: [...], transactions: [...] };
        Expected shape: { labels:[...12], gross:[...12], transactions:[...12] }
        (ordered oldest -> newest). avg is derived = gross / transactions.
        ========================================================================= */
@@ -468,6 +600,17 @@
             });
             noRes.classList.toggle('hidden', visible !== 0);
         });
+
+        window.openMarketAssistant = function() {
+            const toggle = document.getElementById('ai-toggle');
+            const input = document.getElementById('ai-input');
+            const panel = document.getElementById('ai-panel');
+            if (panel && panel.classList.contains('hidden') && toggle) toggle.click();
+            if (input) {
+                input.value = 'What are our strongest target market segments and what should we promote?';
+                input.focus();
+            }
+        };
     });
     </script>
 </body>

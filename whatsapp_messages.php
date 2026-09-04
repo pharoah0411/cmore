@@ -1,5 +1,10 @@
 <?php 
 include('config.php'); 
+include_once('recall_helpers.php');
+$due_recalls = [];
+foreach (get_due_recall_rows($conn) as $due_patient) {
+    $due_recalls[$due_patient['PATIENT_ID']] = $due_patient;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -80,10 +85,13 @@ include('config.php');
                             
                             $msgTreatment = "Hello $name, we are reaching out from C-More Optical regarding your recent eye examination. Please ensure you are following the recommended eye care routine and contact us if you experience any discomfort.";
 
+                            $msgRecall = "Hello $name, this is C-More Optical. Your eye examination follow-up is due. Please reply to arrange a convenient appointment.";
+
                             // URL Encode the messages for safe transport via link
                             $urlFollowUp = "https://wa.me/$cleanPhone?text=" . urlencode($msgFollowUp);
                             $urlAppointment = "https://wa.me/$cleanPhone?text=" . urlencode($msgAppointment);
                             $urlTreatment = "https://wa.me/$cleanPhone?text=" . urlencode($msgTreatment);
+                            $urlRecall = "https://wa.me/$cleanPhone?text=" . urlencode($msgRecall);
                     ?>
                     <tr class="hover:bg-slate-50/80 transition-colors group">
                         <td class="p-5">
@@ -121,6 +129,13 @@ include('config.php');
                                     <i class="fa-solid fa-notes-medical text-sm"></i>
                                     <span>Treatment</span>
                                 </a>
+
+                                <?php if(isset($due_recalls[$row['PATIENT_ID']])): ?>
+                                <a href="<?php echo $urlRecall; ?>" target="_blank" class="flex items-center space-x-2 bg-green-500 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-green-600 hover:shadow-md transition">
+                                    <i class="fa-solid fa-rotate text-sm"></i>
+                                    <span>Recall Due</span>
+                                </a>
+                                <?php endif; ?>
                             </div>
                         </td>
                     </tr>

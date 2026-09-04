@@ -14,6 +14,38 @@ $error = "";
 $success = "";
 $step = isset($_SESSION['step']) ? $_SESSION['step'] : 'credentials';
 
+function auth_rate_limit($purpose, $identifier, $max_attempts, $window_seconds) {
+    $file = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'cmore_auth_' . hash('sha256', $purpose . '|' . $identifier) . '.json';
+    $now = time();
+    $state = ['started_at' => $now, 'attempts' => 0];
+    if (is_file($file)) {
+        $stored = json_decode((string)file_get_contents($file), true);
+        if (is_array($stored) && ($now - (int)($stored['started_at'] ?? 0)) < $window_seconds) {
+            $state = $stored;
+        }
+    }
+    if (($now - (int)$state['started_at']) >= $window_seconds) {
+        $state = ['started_at' => $now, 'attempts' => 0];
+    }
+    $state['attempts']++;
+    file_put_contents($file, json_encode($state), LOCK_EX);
+    return $state['attempts'] <= $max_attempts;
+}
+
+function clear_otp_session() {
+    unset($_SESSION['otp'], $_SESSION['otp_purpose'], $_SESSION['otp_created_at'], $_SESSION['otp_expires_at'], $_SESSION['otp_attempts']);
+}
+
+function complete_login($conn, $user_id, $name, $role, $audit_message) {
+    session_regenerate_id(true);
+    $_SESSION['USER_ID'] = $user_id;
+    $_SESSION['NAME'] = $name;
+    $_SESSION['ROLE'] = $role;
+    systemLog($conn, $audit_message);
+    unset($_SESSION['temp_user_id'], $_SESSION['temp_email'], $_SESSION['temp_name'], $_SESSION['temp_role'], $_SESSION['first_login_otp'], $_SESSION['step']);
+    clear_otp_session();
+}
+
 function sendSystemEmail($toEmail, $toName, $otp, $purpose) {
     $mail = new PHPMailer(true);
     try {
@@ -46,8 +78,13 @@ function sendSystemEmail($toEmail, $toName, $otp, $purpose) {
 
 // 1. HANDLE LOGIN SUBMISSION
 if(isset($_POST['verify_credentials'])) {
-    $email = mysqli_real_escape_string($conn, $_POST['email']);
+    $email_input = strtolower(trim($_POST['email'] ?? ''));
+    $email = mysqli_real_escape_string($conn, $email_input);
     $password = $_POST['password']; 
+
+    if (!auth_rate_limit('login', $_SERVER['REMOTE_ADDR'] . '|' . $email_input, 10, 900)) {
+        $error = "Too many login attempts. Please wait 15 minutes and try again.";
+    } else {
 
     $sql = "SELECT * FROM user WHERE EMAIL = '$email'";
     $res = mysqli_query($conn, $sql);
@@ -60,7 +97,7 @@ if(isset($_POST['verify_credentials'])) {
             // Once you reset your password, it will only use the hash verify.
             
             if ($row['FIRST_LOGIN_OTP'] == 1) {
-                $otp = rand(100000, 999999);
+                $otp = random_int(100000, 999999);
                 
                 $_SESSION['temp_user_id'] = $row['USER_ID'];
                 $_SESSION['temp_email'] = $row['EMAIL'];
@@ -69,6 +106,9 @@ if(isset($_POST['verify_credentials'])) {
                 $_SESSION['first_login_otp'] = $row['FIRST_LOGIN_OTP'];
                 $_SESSION['otp'] = $otp;
                 $_SESSION['otp_purpose'] = 'login';
+                $_SESSION['otp_created_at'] = time();
+                $_SESSION['otp_expires_at'] = time() + 600;
+                $_SESSION['otp_attempts'] = 0;
                 
                 if(sendSystemEmail($email, $row['NAME'], $otp, 'login')) {
                     $_SESSION['step'] = 'otp';
@@ -78,21 +118,7 @@ if(isset($_POST['verify_credentials'])) {
                     $error = "Failed to send OTP email. Check your SMTP settings in .env.";
                 }
             } else {
-                $_SESSION['USER_ID'] = $row['USER_ID'];
-                $_SESSION['NAME'] = $row['NAME'];
-                $_SESSION['ROLE'] = $row['ROLE']; 
-                
-                // Track Login in Audit Log
-                systemLog($conn, 'User logged in successfully');
-                
-                unset($_SESSION['temp_user_id']);
-                unset($_SESSION['temp_email']);
-                unset($_SESSION['temp_name']);
-                unset($_SESSION['temp_role']);
-                unset($_SESSION['first_login_otp']);
-                unset($_SESSION['otp']);
-                unset($_SESSION['otp_purpose']);
-                unset($_SESSION['step']);
+                complete_login($conn, $row['USER_ID'], $row['NAME'], $row['ROLE'], 'User logged in successfully');
                 
                 header("Location: directory.php");
                 exit();
@@ -103,17 +129,24 @@ if(isset($_POST['verify_credentials'])) {
     } else {
         $error = "Invalid email or password.";
     }
+    }
 }
 
 // 2. HANDLE FORGOT PASSWORD SUBMISSION
 if(isset($_POST['trigger_forgot_password'])) {
-    $email = mysqli_real_escape_string($conn, $_POST['forgot_email']);
+    $email_input = strtolower(trim($_POST['forgot_email'] ?? ''));
+    $email = mysqli_real_escape_string($conn, $email_input);
+
+    if (!auth_rate_limit('forgot_password', $_SERVER['REMOTE_ADDR'] . '|' . $email_input, 3, 900)) {
+        $_SESSION['step'] = 'forgot_email';
+        $error = "Too many reset requests. Please wait 15 minutes and try again.";
+    } else {
     
     $sql = "SELECT * FROM user WHERE EMAIL = '$email'";
     $res = mysqli_query($conn, $sql);
     
     if($row = mysqli_fetch_assoc($res)) {
-        $otp = rand(100000, 999999);
+        $otp = random_int(100000, 999999);
         
         $_SESSION['temp_user_id'] = $row['USER_ID'];
         $_SESSION['temp_email'] = $row['EMAIL'];
@@ -121,6 +154,9 @@ if(isset($_POST['trigger_forgot_password'])) {
         $_SESSION['temp_role'] = $row['ROLE'];
         $_SESSION['otp'] = $otp;
         $_SESSION['otp_purpose'] = 'forgot_password';
+        $_SESSION['otp_created_at'] = time();
+        $_SESSION['otp_expires_at'] = time() + 600;
+        $_SESSION['otp_attempts'] = 0;
         
         sendSystemEmail($email, $row['NAME'], $otp, 'forgot_password');
         
@@ -132,38 +168,40 @@ if(isset($_POST['trigger_forgot_password'])) {
         header("Location: login.php");
         exit();
     }
+    }
 }
 
 // 3. HANDLE OTP VERIFICATION
 if(isset($_POST['verify_otp'])) {
-    $entered_otp = $_POST['otp_code'];
-    
-    if($entered_otp == $_SESSION['otp']) {
+    $entered_otp = trim((string)($_POST['otp_code'] ?? ''));
+    $otp_email = $_SESSION['temp_email'] ?? '';
+    $otp_is_allowed = auth_rate_limit('otp_verify', $_SERVER['REMOTE_ADDR'] . '|' . $otp_email, 10, 900);
+    $_SESSION['otp_attempts'] = (int)($_SESSION['otp_attempts'] ?? 0) + 1;
+    $otp_is_valid = isset($_SESSION['otp'], $_SESSION['otp_expires_at'])
+        && time() <= (int)$_SESSION['otp_expires_at']
+        && $_SESSION['otp_attempts'] <= 5
+        && $otp_is_allowed
+        && hash_equals((string)$_SESSION['otp'], $entered_otp);
+
+    if($otp_is_valid) {
         if($_SESSION['otp_purpose'] == 'forgot_password' || (isset($_SESSION['first_login_otp']) && $_SESSION['first_login_otp'] == 1)) {
+            clear_otp_session();
             $_SESSION['step'] = 'change_password';
             header("Location: login.php");
             exit();
         } else {
-            $_SESSION['USER_ID'] = $_SESSION['temp_user_id'];
-            $_SESSION['NAME'] = $_SESSION['temp_name'];
-            $_SESSION['ROLE'] = $_SESSION['temp_role']; 
-            
-            systemLog($conn, 'User logged in successfully');
-            
-            unset($_SESSION['temp_user_id']);
-            unset($_SESSION['temp_email']);
-            unset($_SESSION['temp_name']);
-            unset($_SESSION['temp_role']);
-            unset($_SESSION['first_login_otp']); 
-            unset($_SESSION['otp']);
-            unset($_SESSION['otp_purpose']);
-            unset($_SESSION['step']);
+            complete_login($conn, $_SESSION['temp_user_id'], $_SESSION['temp_name'], $_SESSION['temp_role'], 'User logged in successfully');
             
             header("Location: directory.php");
             exit();
         }
     } else {
-        $error = "Incorrect OTP code. Please try again.";
+        $error = time() > (int)($_SESSION['otp_expires_at'] ?? 0)
+            ? "This OTP has expired. Please request a new code."
+            : ($_SESSION['otp_attempts'] >= 5 || !$otp_is_allowed
+                ? "Too many incorrect OTP attempts. Please request a new code."
+                : "Incorrect OTP code. Please try again.");
+        if (time() > (int)($_SESSION['otp_expires_at'] ?? 0) || $_SESSION['otp_attempts'] >= 5 || !$otp_is_allowed) clear_otp_session();
     }
 }
 
@@ -182,20 +220,7 @@ if(isset($_POST['save_new_password'])) {
             
             $sql = "UPDATE user SET PASSWORD = '$escaped_pw', FIRST_LOGIN_OTP = 0 WHERE USER_ID = $uid";
             if(mysqli_query($conn, $sql)) {
-                $_SESSION['USER_ID'] = $_SESSION['temp_user_id'];
-                $_SESSION['NAME'] = $_SESSION['temp_name'];
-                $_SESSION['ROLE'] = $_SESSION['temp_role']; 
-                
-                systemLog($conn, 'User changed password and logged in');
-                
-                unset($_SESSION['temp_user_id']);
-                unset($_SESSION['temp_email']);
-                unset($_SESSION['temp_name']);
-                unset($_SESSION['temp_role']);
-                unset($_SESSION['first_login_otp']); 
-                unset($_SESSION['otp']);
-                unset($_SESSION['otp_purpose']);
-                unset($_SESSION['step']);
+                complete_login($conn, $_SESSION['temp_user_id'], $_SESSION['temp_name'], $_SESSION['temp_role'], 'User changed password and logged in');
                 
                 header("Location: directory.php");
                 exit();
@@ -247,7 +272,7 @@ $step = isset($_SESSION['step']) ? $_SESSION['step'] : 'credentials';
                 <img src="logo.png" alt="C-More Logo" class="w-full h-auto">
             </div>
             
-            <h2 class="text-3xl font-extrabold text-white tracking-tight relative z-10">Clinical Suite</h2>
+            <h2 class="text-3xl font-extrabold text-white tracking-tight relative z-10">C More Optometry</h2>
             <p class="text-slate-400 mt-3 text-sm leading-relaxed relative z-10 font-medium">Secure clinic management and optical inventory system.</p>
         </div>
 

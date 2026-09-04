@@ -50,6 +50,17 @@ if (!$patient) {
 
 // Calculate Age and DOB
 $ic_info = parse_malaysian_ic($patient['IC_NUMBER']);
+
+$comparison_exams = [];
+$comparison_stmt = mysqli_prepare($conn, "SELECT EXAM_DATE, VISUAL_ACUITY_RESULTS, RE_SPH, RE_CYL, RE_AXIS, RE_ADD, LE_SPH, LE_CYL, LE_AXIS, LE_ADD, PD FROM EYE_EXAMINATION WHERE PATIENT_ID = ? ORDER BY EXAM_DATE DESC, EXAM_ID DESC LIMIT 2");
+$patient_id = (int)$id;
+if ($comparison_stmt) {
+    mysqli_stmt_bind_param($comparison_stmt, 'i', $patient_id);
+    mysqli_stmt_execute($comparison_stmt);
+    $comparison_result = mysqli_stmt_get_result($comparison_stmt);
+    while ($comparison_row = mysqli_fetch_assoc($comparison_result)) $comparison_exams[] = $comparison_row;
+    mysqli_stmt_close($comparison_stmt);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -130,6 +141,86 @@ $ic_info = parse_malaysian_ic($patient['IC_NUMBER']);
                         </div>
                     </div>
                 </section>
+
+                <?php if(count($comparison_exams) > 0): ?>
+                <?php
+                    $latest_exam = $comparison_exams[0];
+                    $previous_exam = $comparison_exams[1] ?? null;
+                    $comparison_fields = [
+                        ['label' => 'Visual Acuity', 'key' => 'VISUAL_ACUITY_RESULTS'],
+                        ['label' => 'Right Sphere (OD)', 'key' => 'RE_SPH'],
+                        ['label' => 'Right Cylinder (OD)', 'key' => 'RE_CYL'],
+                        ['label' => 'Right Axis (OD)', 'key' => 'RE_AXIS'],
+                        ['label' => 'Right ADD (OD)', 'key' => 'RE_ADD'],
+                        ['label' => 'Left Sphere (OS)', 'key' => 'LE_SPH'],
+                        ['label' => 'Left Cylinder (OS)', 'key' => 'LE_CYL'],
+                        ['label' => 'Left Axis (OS)', 'key' => 'LE_AXIS'],
+                        ['label' => 'Left ADD (OS)', 'key' => 'LE_ADD'],
+                        ['label' => 'PD', 'key' => 'PD']
+                    ];
+                    $changed_fields = 0;
+                    if ($previous_exam) {
+                        foreach ($comparison_fields as $field) {
+                            if ((string)($latest_exam[$field['key']] ?? '') !== (string)($previous_exam[$field['key']] ?? '')) $changed_fields++;
+                        }
+                    }
+                ?>
+                <section class="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-8 border-b border-slate-50 pb-4">
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-code-compare text-[#0097B2]"></i>
+                            <div>
+                                <h3 class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2]">Prescription Comparison</h3>
+                                <p class="text-xs text-slate-400 mt-1">Latest examination compared with the previous record.</p>
+                            </div>
+                        </div>
+                        <?php if($previous_exam): ?>
+                            <span class="text-[10px] font-black uppercase tracking-widest <?php echo $changed_fields > 0 ? 'text-amber-600' : 'text-[#8db33e]'; ?>">
+                                <?php echo $changed_fields; ?> field<?php echo $changed_fields === 1 ? '' : 's'; ?> changed
+                            </span>
+                        <?php endif; ?>
+                    </div>
+
+                    <?php if($previous_exam): ?>
+                    <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                        <table class="w-full min-w-[620px] text-sm">
+                            <thead class="bg-slate-50 text-[9px] uppercase tracking-widest text-slate-500">
+                                <tr>
+                                    <th class="p-4 text-left">Measurement</th>
+                                    <th class="p-4 text-center">Latest<br><span class="font-normal normal-case tracking-normal text-slate-400"><?php echo date('d M Y', strtotime($latest_exam['EXAM_DATE'])); ?></span></th>
+                                    <th class="p-4 text-center">Previous<br><span class="font-normal normal-case tracking-normal text-slate-400"><?php echo date('d M Y', strtotime($previous_exam['EXAM_DATE'])); ?></span></th>
+                                    <th class="p-4 text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach($comparison_fields as $field):
+                                    $latest_value = trim((string)($latest_exam[$field['key']] ?? '')) ?: '-';
+                                    $previous_value = trim((string)($previous_exam[$field['key']] ?? '')) ?: '-';
+                                    $has_changed = $latest_value !== $previous_value;
+                                ?>
+                                <tr class="border-t border-slate-100">
+                                    <td class="p-4 font-bold text-slate-700"><?php echo htmlspecialchars($field['label']); ?></td>
+                                    <td class="p-4 text-center font-black <?php echo $has_changed ? 'bg-amber-50 text-amber-700' : 'text-slate-800'; ?>"><?php echo htmlspecialchars($latest_value); ?></td>
+                                    <td class="p-4 text-center font-bold text-slate-500"><?php echo htmlspecialchars($previous_value); ?></td>
+                                    <td class="p-4 text-center">
+                                        <?php if($has_changed): ?>
+                                            <span class="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-amber-600"><i class="fa-solid fa-arrow-right"></i> Changed</span>
+                                        <?php else: ?>
+                                            <span class="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-[#8db33e]"><i class="fa-solid fa-check"></i> Same</span>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <?php else: ?>
+                        <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+                            A second examination is needed before a prescription comparison can be shown.
+                        </div>
+                    <?php endif; ?>
+                </section>
+                <?php endif; ?>
 
                 <section class="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40">
                     <div class="flex justify-between items-center mb-8 border-b border-slate-50 pb-4">

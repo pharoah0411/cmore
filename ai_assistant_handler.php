@@ -8,12 +8,28 @@ header('Content-Type: application/json');
 
 // 1. Get the floating widget's input
 $data = json_decode(file_get_contents('php://input'), true);
-$user_query = $data['query'] ?? '';
+$user_query = trim($data['query'] ?? '');
 
 if (empty($user_query)) {
     echo json_encode(['reply' => 'Please ask a question.']);
     exit;
 }
+
+// Avoid an API round-trip for common requests that never need database routing.
+$normalized_query = strtolower(preg_replace('/\s+/', ' ', $user_query));
+$fast_replies = [
+    'hi' => "Hello! I can help with patients, prescriptions, stock, appointments, billing, and suppliers.",
+    'hello' => "Hello! I can help with patients, prescriptions, stock, appointments, billing, and suppliers.",
+    'hey' => "Hello! I can help with patients, prescriptions, stock, appointments, billing, and suppliers.",
+    'help' => "Try asking: <i>Find John</i>, <i>What is Jane's prescription?</i>, <i>Stock for Ray-Ban</i>, or <i>When is John's appointment?</i>"
+];
+if (isset($fast_replies[$normalized_query])) {
+    echo json_encode(['reply' => $fast_replies[$normalized_query], 'redirect_url' => null]);
+    exit;
+}
+
+// Keep model latency and prompt size bounded for the shared floating widget.
+$user_query = substr($user_query, 0, 500);
 
 // 2. Safely Extract the API Key from .env
 $env_file_path = __DIR__ . '/.env';
@@ -40,9 +56,10 @@ if (empty($apiKey)) {
     exit;
 }
 
-// 3. Prepare the System Prompt with ALL Clinic Capabilities
+// 3. Prepare a concise routing prompt with the clinic's supported capabilities.
 $system_instruction = "You are a backend database routing assistant for an optical clinic management system named 'C More'. "
-                    . "Your job is to read the staff's natural language query and convert it into a structured JSON routing object. "
+                    . "The current date is " . date('Y-m-d') . ". The logged-in staff role is " . ($_SESSION['ROLE'] ?? 'Staff') . ". "
+                    . "Read the staff's natural language query and convert it into a structured JSON routing object. "
                     . "Analyze the query and extract the 'intent' and the 'search_term'.\n\n"
                     . "Allowed values for 'intent':\n"
                     . "- 'find_patient' (when looking for a customer/patient name, contact info, or complaints)\n"
@@ -51,12 +68,17 @@ $system_instruction = "You are a backend database routing assistant for an optic
                     . "- 'check_appointment' (when looking for schedules, bookings, or visit dates for a person)\n"
                     . "- 'check_sales' (when looking for billing, amount owed, or payment status for a person)\n"
                     . "- 'find_supplier' (when looking for vendor, supplier, or wholesale company contact info)\n"
-                    . "- 'general' (for greetings or unrelated questions)\n\n"
-                    . "You must return ONLY a raw JSON object with keys 'intent' and 'search_term'. Do not include markdown code blocks. "
+                    . "- 'check_low_stock' (when asking which products need restocking or have low stock)\n"
+                    . "- 'check_expiry' (when asking about expired or soon-to-expire products)\n"
+                    . "- 'check_today' (when asking about today's appointments or schedule)\n"
+                    . "- 'market_insights' (when asking about target markets, customer segments, best-selling categories, or what to promote)\n"
+                    . "- 'general' (for greetings, help, or unrelated questions)\n\n"
+                    . "Use the patient's or product's name as search_term. For general questions, use an empty search_term. "
+                    . "Return ONLY a raw JSON object with exactly the keys 'intent' and 'search_term'. Do not include markdown. "
                     . "Example Output: {\"intent\": \"check_appointment\", \"search_term\": \"John\"}";
 
-// 4. Make the API Call with Fallbacks and Retries
-$models = ["gemini-3.5-flash", "gemini-2.5-flash"];
+// 4. Make the API call with short timeouts and one lightweight fallback.
+$models = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
 $response = false;
 $http_code = 0;
 $curl_error = '';
@@ -66,7 +88,11 @@ foreach ($models as $model_name) {
     
     $payload = [
         "contents" => [["parts" => [["text" => $system_instruction . "\n\nUser Query: " . $user_query]]]],
-        "generationConfig" => ["responseMimeType" => "application/json"]
+        "generationConfig" => [
+            "temperature" => 0.1,
+            "maxOutputTokens" => 80,
+            "responseMimeType" => "application/json"
+        ]
     ];
 
     $ch = curl_init($url);
@@ -74,22 +100,12 @@ foreach ($models as $model_name) {
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
     curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-    
-    $max_retries = 2;
-    $retry_delay = 1; 
-    
-    for ($attempt = 0; $attempt < $max_retries; $attempt++) {
-        $response = curl_exec($ch);
-        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curl_error = curl_error($ch);
-        
-        if ($http_code == 503) {
-            sleep($retry_delay);
-            $retry_delay *= 2; 
-            continue;
-        }
-        break;
-    }
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+
+    $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curl_error = curl_error($ch);
     curl_close($ch);
 
     if ($http_code == 200 && !$curl_error) break;
@@ -110,8 +126,11 @@ if (!$ai_raw_text) {
 }
 
 $routing = json_decode(trim($ai_raw_text), true);
-$intent = $routing['intent'] ?? 'general';
-$search_term = trim($routing['search_term'] ?? '');
+$allowed_intents = ['find_patient', 'check_prescription', 'check_stock', 'check_appointment', 'check_sales', 'find_supplier', 'check_low_stock', 'check_expiry', 'check_today', 'market_insights', 'general'];
+$intent = is_array($routing) && in_array($routing['intent'] ?? '', $allowed_intents, true)
+    ? $routing['intent']
+    : 'general';
+$search_term = is_array($routing) ? trim((string)($routing['search_term'] ?? '')) : '';
 
 // CONTEXT MEMORY: Inject previous patient name if pronoun is used
 if (empty($search_term) || in_array(strtolower($search_term), ['he', 'she', 'his', 'her', 'him', 'they', 'them', 'their'])) {
@@ -246,14 +265,67 @@ switch ($intent) {
         $stmt->close();
         break;
 
+    case 'check_low_stock':
+        $result = $conn->query("SELECT BRAND_NAME, STOCK_QUANTITY, UNIT_PRICE FROM product WHERE STOCK_QUANTITY < 5 ORDER BY STOCK_QUANTITY ASC LIMIT 10");
+        if ($result && $result->num_rows > 0) {
+            $reply = "Products needing restocking:<br>";
+            while ($row = $result->fetch_assoc()) {
+                $reply .= "• " . htmlspecialchars($row['BRAND_NAME']) . ": <b>" . (int)$row['STOCK_QUANTITY'] . " units</b> (RM " . number_format($row['UNIT_PRICE'], 2) . ")<br>";
+            }
+        } else {
+            $reply = "No products are currently below the restock threshold.";
+        }
+        break;
+
+    case 'check_expiry':
+        $result = $conn->query("SELECT BRAND_NAME, STOCK_QUANTITY, EXPIRY_DATE FROM product WHERE EXPIRY_DATE IS NOT NULL AND EXPIRY_DATE <= DATE_ADD(CURDATE(), INTERVAL 90 DAY) ORDER BY EXPIRY_DATE ASC LIMIT 10");
+        if ($result && $result->num_rows > 0) {
+            $reply = "Expired or soon-to-expire products:<br>";
+            while ($row = $result->fetch_assoc()) {
+                $reply .= "• " . htmlspecialchars($row['BRAND_NAME']) . ": <b>" . htmlspecialchars($row['EXPIRY_DATE']) . "</b> (" . (int)$row['STOCK_QUANTITY'] . " units)<br>";
+            }
+        } else {
+            $reply = "No products are expired or due to expire within 90 days.";
+        }
+        break;
+
+    case 'check_today':
+        $result = $conn->query("SELECT a.APPOINTMENT_DATETIME, a.STATUS, p.NAME FROM appointment a JOIN patient p ON a.PATIENT_ID = p.PATIENT_ID WHERE DATE(a.APPOINTMENT_DATETIME) = CURDATE() ORDER BY a.APPOINTMENT_DATETIME ASC");
+        if ($result && $result->num_rows > 0) {
+            $reply = "Today's appointments:<br>";
+            while ($row = $result->fetch_assoc()) {
+                $reply .= "• " . htmlspecialchars($row['NAME']) . " - " . date("h:i A", strtotime($row['APPOINTMENT_DATETIME'])) . " (<b>" . htmlspecialchars($row['STATUS']) . "</b>)<br>";
+            }
+        } else {
+            $reply = "There are no appointments scheduled for today.";
+        }
+        break;
+
+    case 'market_insights':
+        $category_result = $conn->query("SELECT COALESCE(NULLIF(p.CATEGORY, ''), 'Other') AS category, SUM(si.QUANTITY) AS units, SUM(si.QUANTITY * p.UNIT_PRICE) AS revenue FROM SALES_ITEM si JOIN PRODUCT p ON p.PRODUCT_ID = si.PRODUCT_ID GROUP BY p.CATEGORY ORDER BY revenue DESC LIMIT 5");
+        $reply = "Target market signals from current sales:<br>";
+        if ($category_result && $category_result->num_rows > 0) {
+            while ($row = $category_result->fetch_assoc()) {
+                $reply .= "• <b>" . htmlspecialchars($row['category']) . " audience</b>: " . (int)$row['units'] . " units sold, RM " . number_format($row['revenue'], 2) . " attributed revenue<br>";
+            }
+        } else {
+            $reply .= "There is not enough sales data to identify a leading category yet.<br>";
+        }
+        $repeat_result = $conn->query("SELECT COUNT(*) AS total FROM (SELECT PATIENT_ID FROM SALES WHERE PATIENT_ID IS NOT NULL GROUP BY PATIENT_ID HAVING COUNT(*) >= 2) repeat_customers");
+        $repeat_count = $repeat_result ? (int)$repeat_result->fetch_assoc()['total'] : 0;
+        $reply .= "• <b>Repeat customer opportunity</b>: " . $repeat_count . " patients have made two or more purchases.<br>";
+        $reply .= "Recommendation: promote the leading category first, then target repeat customers with upgrades and due recall patients with appointment reminders.";
+        break;
+
     default:
-        $reply = "Hello! I am your clinic assistant. You can ask me to:<br>"
+        $reply = "I am your clinic assistant. You can ask me to:<br>"
                . "• Find a patient (e.g., <i>'Find Farah'</i>)<br>"
                . "• Check prescriptions (e.g., <i>'What is her prescription?'</i>)<br>"
                . "• Check stock & prices (e.g., <i>'Stock for Ray-Ban'</i>)<br>"
                . "• Check appointments (e.g., <i>'When is John's appointment?'</i>)<br>"
                . "• Check billing (e.g., <i>'Has Robert paid?'</i>)<br>"
-               . "• Find suppliers (e.g., <i>'Contact for Luxottica'</i>)";
+               . "• Find suppliers (e.g., <i>'Contact for Luxottica'</i>)<br>"
+               . "• Check low stock, expiry dates, or today's appointments";
         break;
 }
 

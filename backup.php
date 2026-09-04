@@ -9,8 +9,18 @@ if (!isset($_SESSION['USER_ID'])) {
     exit();
 }
 
-$backup_dir = 'backups/';
-$backup_file = $backup_dir . 'cmore_latest_backup.sql';
+$backup_dir = __DIR__ . DIRECTORY_SEPARATOR . 'backups';
+$backup_file = $backup_dir . DIRECTORY_SEPARATOR . 'cmore_latest_backup.sql.enc';
+
+function decrypt_backup_file($backup_file) {
+    $encryption_key = getenv('BACKUP_ENCRYPTION_KEY') ?: ($_ENV['BACKUP_ENCRYPTION_KEY'] ?? '');
+    if ($encryption_key === '') throw new RuntimeException('Backup encryption key is not configured.');
+    $archive = json_decode(file_get_contents($backup_file), true, 512, JSON_THROW_ON_ERROR);
+    if (($archive['format'] ?? '') !== 'cmore-aes-256-gcm-v1') throw new RuntimeException('Unsupported backup format.');
+    $plaintext = openssl_decrypt(base64_decode($archive['data']), 'aes-256-gcm', hash('sha256', $encryption_key, true), OPENSSL_RAW_DATA, base64_decode($archive['iv']), base64_decode($archive['tag']));
+    if ($plaintext === false) throw new RuntimeException('Backup decryption failed.');
+    return $plaintext;
+}
 
 if (!is_dir($backup_dir)) {
     mkdir($backup_dir, 0777, true);
@@ -27,9 +37,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         exit;
     }
 
-    include('auto_backup.php'); // Calls our auto-backup script
-    systemLog($conn, 'Generated a manual database backup');
-    $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Backup successfully generated and overwritten!'];
+    include('auto_backup.php');
+    if (isset($result)) {
+        systemLog($conn, 'Generated an encrypted manual database backup');
+        $_SESSION['flash'] = ['type' => 'success', 'msg' => 'Encrypted backup successfully generated.'];
+    }
     
     header("Location: backup.php");
     exit;
@@ -51,8 +63,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         exit;
     }
 
-    // Read the backup file
-    $sql_content = file_get_contents($backup_file);
+    try {
+        $sql_content = decrypt_backup_file($backup_file);
+    } catch (Throwable $exception) {
+        $_SESSION['flash'] = ['type' => 'error', 'msg' => 'Restore failed: ' . $exception->getMessage()];
+        header("Location: backup.php");
+        exit;
+    }
 
     // ---- THE SMART MERGE MAGIC ----
     // 1. Remove all DROP TABLE commands so we don't destroy current data
@@ -96,12 +113,19 @@ if (isset($_GET['download']) && $_GET['download'] === 'true') {
         systemLog($conn, 'Downloaded the latest database backup file');
         header('Content-Description: File Transfer');
         header('Content-Type: application/octet-stream');
+        try {
+            $sql_content = decrypt_backup_file($backup_file);
+        } catch (Throwable $exception) {
+            $_SESSION['flash'] = ['type' => 'error', 'msg' => 'Download failed: ' . $exception->getMessage()];
+            header("Location: backup.php");
+            exit;
+        }
         header('Content-Disposition: attachment; filename="cmore_backup_' . date('Y-m-d') . '.sql"');
         header('Expires: 0');
         header('Cache-Control: must-revalidate');
         header('Pragma: public');
-        header('Content-Length: ' . filesize($backup_file));
-        readfile($backup_file);
+        header('Content-Length: ' . strlen($sql_content));
+        echo $sql_content;
         exit;
     } else {
         $_SESSION['flash'] = ['type' => 'error', 'msg' => 'Backup file not found. Please generate one first.'];
@@ -174,7 +198,7 @@ $file_size = $file_exists ? round(filesize($backup_file) / 1024, 2) . ' KB' : '0
                     </div>
                     <h3 class="text-2xl font-black text-slate-900 tracking-tight">Overwrite Data</h3>
                     <p class="text-slate-500 text-sm font-medium mt-3 leading-relaxed">
-                        Running this process pulls all active records, patient ICs, sales, and inventory, and updates the single <code>cmore_latest_backup.sql</code> file.
+                        Running this process pulls all active records, patient ICs, sales, and inventory, and updates the encrypted backup archive.
                     </p>
                 </div>
 
@@ -219,7 +243,7 @@ $file_size = $file_exists ? round(filesize($backup_file) / 1024, 2) . ' KB' : '0
                 <div class="mt-8 z-10">
                     <?php if($file_exists): ?>
                         <a href="backup.php?download=true" class="block w-full bg-[#B9D977] text-slate-900 text-center py-4 rounded-2xl font-black shadow-lg hover:bg-white transition-all">
-                            <i class="fa-solid fa-cloud-arrow-down mr-2"></i> Download .SQL File
+                            <i class="fa-solid fa-cloud-arrow-down mr-2"></i> Download Decrypted .SQL
                         </a>
                     <?php else: ?>
                         <button disabled class="w-full bg-slate-800 text-slate-500 cursor-not-allowed py-4 rounded-2xl font-bold border border-slate-700">
