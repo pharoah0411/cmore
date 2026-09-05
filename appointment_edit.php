@@ -1,7 +1,7 @@
 <?php 
 include('config.php'); 
 
-$id = isset($_GET['id']) ? mysqli_real_escape_string($conn, $_GET['id']) : '';
+$id = (int)($_GET['id'] ?? $_POST['appointment_id'] ?? 0);
 
 if(empty($id)) {
     header("Location: appointment.php");
@@ -14,17 +14,27 @@ $error = '';
 // HANDLE FORM SUBMISSION
 // ==========================================
 if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_appointment'])) {
-    $patient_id = mysqli_real_escape_string($conn, $_POST['patient_id']);
-    $staff_id = mysqli_real_escape_string($conn, $_POST['staff_id']);
-    $datetime = mysqli_real_escape_string($conn, $_POST['appointment_datetime']);
-    $status = mysqli_real_escape_string($conn, $_POST['status']);
+    $patient_id = (int)($_POST['patient_id'] ?? 0);
+    $staff_id = (int)($_POST['staff_id'] ?? 0);
+    $datetime_input = trim($_POST['appointment_datetime'] ?? '');
+    $status_input = trim($_POST['status'] ?? '');
+    $datetime_value = DateTime::createFromFormat('!Y-m-d\TH:i', $datetime_input);
+
+    if ($patient_id <= 0 || $staff_id <= 0 || !$datetime_value || !in_array($status_input, ['Pending', 'Checked-In', 'Completed', 'Cancelled'], true)) {
+        $error = "Please provide valid appointment details.";
+    }
+
+    $datetime = mysqli_real_escape_string($conn, $datetime_value ? $datetime_value->format('Y-m-d H:i:00') : '');
+    $status = mysqli_real_escape_string($conn, $status_input);
 
     // --- SERVER-SIDE BUSINESS HOURS VALIDATION ---
-    $timestamp = strtotime($datetime);
-    $day_of_week = date('w', $timestamp); // 0 = Sunday, 3 = Wednesday
-    $hour = (int)date('H', $timestamp); // 24-hour format
+    $timestamp = $datetime_value ? $datetime_value->getTimestamp() : false;
+    $day_of_week = $timestamp !== false ? date('w', $timestamp) : null; // 0 = Sunday, 3 = Wednesday
+    $hour = $timestamp !== false ? (int)date('H', $timestamp) : null; // 24-hour format
 
-    if ($day_of_week == 3) {
+    if (!empty($error)) {
+        // Validation message is already set above.
+    } elseif ($day_of_week == 3) {
         $error = "Error: The clinic is closed on Wednesdays.";
     } elseif ($hour < 11 || $hour >= 19) {
         // Must be exactly 11:00 AM up to 6:59 PM
@@ -33,7 +43,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_appointment'])) 
         $conflict_sql = "SELECT APPOINTMENT_ID FROM appointment
                          WHERE STAFF_ID = '$staff_id'
                          AND APPOINTMENT_DATETIME = '$datetime'
-                         AND APPOINTMENT_ID != '$id'
+                         AND APPOINTMENT_ID != $id
                          AND (STATUS IS NULL OR STATUS NOT IN ('Cancelled'))
                          LIMIT 1";
         $conflict_result = mysqli_query($conn, $conflict_sql);
@@ -48,7 +58,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_appointment'])) 
                     STAFF_ID = '$staff_id',
                     APPOINTMENT_DATETIME = '$datetime',
                     STATUS = '$status'
-                    WHERE APPOINTMENT_ID = '$id'";
+                    WHERE APPOINTMENT_ID = $id";
 
             if (mysqli_query($conn, $sql)) {
                 systemLog($conn, "Updated appointment details", 'appointment', $id);
@@ -62,7 +72,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_appointment'])) 
 }
 
 // Fetch existing data
-$res = mysqli_query($conn, "SELECT * FROM APPOINTMENT WHERE APPOINTMENT_ID = '$id'");
+$res = mysqli_query($conn, "SELECT * FROM APPOINTMENT WHERE APPOINTMENT_ID = $id");
 $appt = mysqli_fetch_assoc($res);
 
 if(!$appt) {
@@ -95,7 +105,7 @@ $existing_datetime = date('Y-m-d\TH:i', strtotime($appt['APPOINTMENT_DATETIME'])
             <p class="text-slate-500 font-medium mt-1">Modify scheduling details for this visit.</p>
         </header>
 
-        <?php if(isset($error)): ?>
+        <?php if(!empty($error)): ?>
             <div class="bg-red-100 text-red-700 p-4 rounded-xl mb-6 font-bold flex items-center max-w-3xl">
                 <i class="fa-solid fa-triangle-exclamation mr-3"></i>
                 <?php echo $error; ?>
@@ -103,7 +113,8 @@ $existing_datetime = date('Y-m-d\TH:i', strtotime($appt['APPOINTMENT_DATETIME'])
         <?php endif; ?>
 
         <div class="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 max-w-3xl">
-            <form method="POST" action="">
+            <form method="POST" action="appointment_edit.php?id=<?php echo $id; ?>">
+                <input type="hidden" name="appointment_id" value="<?php echo $id; ?>">
                 
                 <div class="mb-8">
                     <label class="block text-sm font-bold text-slate-600 mb-2">Patient Details</label>

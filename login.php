@@ -184,8 +184,10 @@ if(isset($_POST['verify_otp'])) {
         && hash_equals((string)$_SESSION['otp'], $entered_otp);
 
     if($otp_is_valid) {
-        if($_SESSION['otp_purpose'] == 'forgot_password' || (isset($_SESSION['first_login_otp']) && $_SESSION['first_login_otp'] == 1)) {
+        $otp_purpose = $_SESSION['otp_purpose'] ?? 'login';
+        if($otp_purpose === 'forgot_password' || (isset($_SESSION['first_login_otp']) && $_SESSION['first_login_otp'] == 1)) {
             clear_otp_session();
+            $_SESSION['otp_purpose'] = $otp_purpose;
             $_SESSION['step'] = 'change_password';
             header("Location: login.php");
             exit();
@@ -370,7 +372,7 @@ $step = isset($_SESSION['step']) ? $_SESSION['step'] : 'credentials';
                 <div class="mb-10">
                     <h3 class="text-3xl font-black text-slate-900 tracking-tight">Update Password</h3>
                     <p class="text-slate-500 font-medium mt-1">
-                        <?php echo ($_SESSION['otp_purpose'] == 'forgot_password') ? "Create a new password for your account." : "For security, you must change the default password provided by the administrator."; ?>
+                        <?php echo (($_SESSION['otp_purpose'] ?? 'login') === 'forgot_password') ? "Create a new password for your account." : "For security, you must change the default password provided by the administrator."; ?>
                     </p>
                 </div>
 
