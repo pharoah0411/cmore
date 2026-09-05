@@ -137,18 +137,21 @@
         </div>";
 
         // Inventory Submenu
-        $is_inv = ($current == 'inventory.php');
+        $is_inventory = ($current == 'inventory.php');
+        $is_supplier = ($current == 'supplier.php');
+        $is_inv = $is_inventory || $is_supplier;
         $inv_filter = isset($_GET['filter']) ? $_GET['filter'] : 'all';
         $inv_cat = isset($_GET['category']) ? $_GET['category'] : 'all';
         echo "<div class='relative'>" . submenu_btn('inv-submenu', 'fa-solid fa-box-archive', 'Inventory', $is_inv) . "
             <div id='inv-submenu' class='" . ($is_inv ? '' : 'hidden') . " mt-1 ml-5 pl-3 border-l border-slate-700/60 space-y-0.5 py-1'>";
-                sub_link('inventory.php', 'fa-solid fa-boxes-stacked', 'All Products', $is_inv && $inv_filter == 'all' && $inv_cat == 'all', 'bg-[#0097B2] text-white');
+            sub_link('inventory.php', 'fa-solid fa-boxes-stacked', 'All Products', $is_inventory && $inv_filter == 'all' && $inv_cat == 'all', 'bg-[#0097B2] text-white');
+            sub_link('supplier.php', 'fa-solid fa-truck', 'Suppliers', $is_supplier, 'bg-[#B9D977] text-slate-900');
                 echo "<p class='text-[9px] uppercase tracking-widest text-slate-500 font-bold px-3 pt-3 pb-1'>Image Filters</p>";
-                sub_link('inventory.php?filter=with_image', 'fa-solid fa-image',       'With Picture',    $is_inv && $inv_filter == 'with_image', 'bg-[#B9D977] text-slate-900');
-                sub_link('inventory.php?filter=no_image',   'fa-solid fa-image-slash', 'Without Picture', $is_inv && $inv_filter == 'no_image',   'bg-slate-700 text-white');
+            sub_link('inventory.php?filter=with_image', 'fa-solid fa-image',       'With Picture',    $is_inventory && $inv_filter == 'with_image', 'bg-[#B9D977] text-slate-900');
+            sub_link('inventory.php?filter=no_image',   'fa-solid fa-image-slash', 'Without Picture', $is_inventory && $inv_filter == 'no_image',   'bg-slate-700 text-white');
                 echo "<p class='text-[9px] uppercase tracking-widest text-slate-500 font-bold px-3 pt-3 pb-1'>Categories</p>";
-                sub_link('inventory.php?category=Frames',         'fa-solid fa-glasses', 'Frames',         $is_inv && $inv_cat == 'Frames',         'bg-[#0097B2] text-white');
-                sub_link('inventory.php?category=Contact Lenses', 'fa-solid fa-eye',     'Contact Lenses', $is_inv && $inv_cat == 'Contact Lenses', 'bg-[#0097B2] text-white');
+            sub_link('inventory.php?category=Frames',         'fa-solid fa-glasses', 'Frames',         $is_inventory && $inv_cat == 'Frames',         'bg-[#0097B2] text-white');
+            sub_link('inventory.php?category=Contact Lenses', 'fa-solid fa-eye',     'Contact Lenses', $is_inventory && $inv_cat == 'Contact Lenses', 'bg-[#0097B2] text-white');
         echo "  </div>
         </div>";
 
@@ -189,7 +192,7 @@
                     <p class="text-[9px] text-[#B9D977] uppercase font-black tracking-[0.15em] mt-0.5"><i class="fa-solid fa-circle-check text-[8px] mr-1"></i><?php echo htmlspecialchars($user_role); ?></p>
                 </div>
             </div>
-            <a href="auto_backup.php?logout=true" class="mt-4 group flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-slate-700/40 hover:bg-[#0097B2] text-slate-300 hover:text-white text-xs font-bold uppercase tracking-[0.15em] transition-all duration-300">
+            <a href="auto_backup.php?logout=true" onclick="return confirm('Are you sure you want to log out? A secure backup will be completed before your session ends.');" class="mt-4 group flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-slate-700/40 hover:bg-[#0097B2] text-slate-300 hover:text-white text-xs font-bold uppercase tracking-[0.15em] transition-all duration-300">
                 <i class="fa-solid fa-cloud-arrow-up group-hover:-translate-y-0.5 transition-transform"></i> Logout & Backup
             </a>
         </div>
@@ -294,6 +297,9 @@
                     body: JSON.stringify({ query: query })
                 });
                 const data = await response.json();
+                if (!response.ok || !data || typeof data.reply !== 'string') {
+                    throw new Error('Assistant returned an invalid response.');
+                }
                 thinkingMessage.remove();
                 addMessage(data.reply || 'I could not produce a response.', false);
                 if (data.redirect_url) window.location.href = data.redirect_url;

@@ -2,20 +2,37 @@
 include('config.php'); 
 $id = isset($_GET['id']) ? mysqli_real_escape_string($conn, $_GET['id']) : '';
 $is_edit_mode = isset($_GET['edit']) && $_GET['edit'] == 1;
+if (session_status() === PHP_SESSION_NONE) session_start();
+if (empty($_SESSION['csrf_token'])) $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+$csrf = $_SESSION['csrf_token'];
+$payment_methods = ['Cash', 'Card', 'E-wallet', 'Online Banking'];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['save_edit']) || isset($_POST['add_payment']))) {
+    if (empty($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        header("Location: sales_view.php?id=" . urlencode($id) . "&error=csrf");
+        exit();
+    }
+}
 
 // Handle Edit Save
 if(isset($_POST['save_edit'])) {
-    $new_paid_amount = floatval($_POST['paid_amount']);
-    $new_payment_method = mysqli_real_escape_string($conn, $_POST['payment_method']);
+    $paid_amount_raw = trim($_POST['paid_amount'] ?? '');
+    $new_paid_amount = is_numeric($paid_amount_raw) ? (float)$paid_amount_raw : -1;
+    $new_payment_method = $_POST['payment_method'] ?? '';
     
     // Fetch sale details
     $check = mysqli_fetch_assoc(mysqli_query($conn, "SELECT TOTAL_AMOUNT, PAID_AMOUNT, PAYMENT_METHOD FROM SALES WHERE SALE_ID = '$id'"));
     $total = floatval($check['TOTAL_AMOUNT']);
     
-    // Validate paid amount doesn't exceed total
-    if($new_paid_amount > $total) {
-        $new_paid_amount = $total;
+    if ($new_paid_amount < 0 || !preg_match('/^\d+(\.\d{1,2})?$/', $paid_amount_raw)) {
+        header("Location: sales_view.php?id=" . urlencode($id) . "&error=amount");
+        exit();
     }
+    if (!in_array($new_payment_method, $payment_methods, true) || $new_paid_amount > $total) {
+        header("Location: sales_view.php?id=" . urlencode($id) . "&error=payment");
+        exit();
+    }
+    $new_payment_method = mysqli_real_escape_string($conn, $new_payment_method);
     
     $status = ($new_paid_amount >= $total) ? 'Completed' : ($new_paid_amount > 0 ? 'Partial' : 'Pending');
     
@@ -32,23 +49,34 @@ if(isset($_POST['save_edit'])) {
 
 // Handle Payment Update (Quick Add)
 if(isset($_POST['add_payment'])) {
-    $new_payment = floatval($_POST['payment_amount']);
+    $payment_amount_raw = trim($_POST['payment_amount'] ?? '');
+    $new_payment = is_numeric($payment_amount_raw) ? (float)$payment_amount_raw : -1;
+    $new_payment_method = $_POST['payment_method'] ?? '';
     
     // Fetch current amounts
     $check = mysqli_fetch_assoc(mysqli_query($conn, "SELECT TOTAL_AMOUNT, PAID_AMOUNT FROM SALES WHERE SALE_ID = '$id'"));
     $total = floatval($check['TOTAL_AMOUNT']);
     $current_paid = floatval($check['PAID_AMOUNT']);
+    $remaining = max(0, $total - $current_paid);
     
-    $updated_paid = $current_paid + $new_payment;
-    
-    // Ensure we don't accidentally overpay in the system
-    if($updated_paid > $total) {
-        $updated_paid = $total;
+    if ($new_payment <= 0 || !preg_match('/^\d+(\.\d{1,2})?$/', $payment_amount_raw)) {
+        header("Location: sales_view.php?id=" . urlencode($id) . "&error=amount");
+        exit();
     }
+    if ($new_payment > $remaining || !in_array($new_payment_method, $payment_methods, true)) {
+        header("Location: sales_view.php?id=" . urlencode($id) . "&error=payment");
+        exit();
+    }
+
+    $updated_paid = min($total, $current_paid + $new_payment);
+    $new_payment_method = mysqli_real_escape_string($conn, $new_payment_method);
     
     $status = ($updated_paid >= $total) ? 'Completed' : 'Partial';
     
-    mysqli_query($conn, "UPDATE SALES SET PAID_AMOUNT = '$updated_paid', PAYMENT_STATUS = '$status' WHERE SALE_ID = '$id'");
+    if (!mysqli_query($conn, "UPDATE SALES SET PAID_AMOUNT = '$updated_paid', PAYMENT_STATUS = '$status', PAYMENT_METHOD = '$new_payment_method' WHERE SALE_ID = '$id'")) {
+        header("Location: sales_view.php?id=" . urlencode($id) . "&error=save");
+        exit();
+    }
     // Log quick payment addition
     systemLog($conn, "Added payment of RM" . number_format($new_payment, 2) . " to sale #TXN-$id", "SALES", $id);
     header("Location: sales_view.php?id=$id&msg=updated");
@@ -118,6 +146,12 @@ $status_color = $sale['PAYMENT_STATUS'] == 'Completed' ? 'bg-green-500' : ($sale
             <p class="font-bold text-sm">Sale transaction updated successfully and logged in audit trail.</p>
         </div>
         <?php endif; ?>
+        <?php if(isset($_GET['error'])): ?>
+        <div class="bg-red-50 border border-red-200 text-red-700 p-5 rounded-2xl mb-8 flex items-center shadow-sm">
+            <i class="fa-solid fa-circle-exclamation mr-3 text-lg text-red-600"></i>
+            <p class="font-bold text-sm"><?php echo $_GET['error'] === 'amount' ? 'Enter a valid payment amount within the remaining balance.' : ($_GET['error'] === 'csrf' ? 'Your session expired. Refresh the page and try again.' : 'Payment method or payment details are invalid.'); ?></p>
+        </div>
+        <?php endif; ?>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div class="lg:col-span-2 space-y-8">
@@ -150,6 +184,7 @@ $status_color = $sale['PAYMENT_STATUS'] == 'Completed' ? 'bg-green-500' : ($sale
                     <?php if($is_edit_mode): ?>
                     <!-- EDIT MODE FORM -->
                     <form action="" method="POST" class="space-y-6">
+                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf, ENT_QUOTES); ?>">
                         <div>
                             <label class="text-[10px] font-black text-slate-300 uppercase block mb-3 tracking-widest">Total Amount</label>
                             <p class="text-3xl font-mono font-bold text-white">RM <?php echo number_format($sale['TOTAL_AMOUNT'], 2); ?></p>
@@ -168,10 +203,10 @@ $status_color = $sale['PAYMENT_STATUS'] == 'Completed' ? 'bg-green-500' : ($sale
                         <div>
                             <label class="text-[10px] font-black text-slate-300 uppercase block mb-3 tracking-widest">Payment Method</label>
                             <select name="payment_method" class="w-full px-4 py-4 bg-white/10 border border-white/20 rounded-xl outline-none font-bold text-white focus:border-[#B9D977] transition-colors appearance-none cursor-pointer">
-                                <option value="Cash" <?php echo $sale['PAYMENT_METHOD'] == 'Cash' ? 'selected' : ''; ?>>Cash</option>
-                                <option value="Card" <?php echo $sale['PAYMENT_METHOD'] == 'Card' ? 'selected' : ''; ?>>Card</option>
-                                <option value="Online Transfer" <?php echo $sale['PAYMENT_METHOD'] == 'Online Transfer' ? 'selected' : ''; ?>>Online Transfer</option>
-                                <option value="Cheque" <?php echo $sale['PAYMENT_METHOD'] == 'Cheque' ? 'selected' : ''; ?>>Cheque</option>
+                                <option class="bg-white text-slate-900" value="Cash" <?php echo $sale['PAYMENT_METHOD'] == 'Cash' ? 'selected' : ''; ?>>Cash</option>
+                                <option class="bg-white text-slate-900" value="Card" <?php echo $sale['PAYMENT_METHOD'] == 'Card' ? 'selected' : ''; ?>>Card</option>
+                                <option class="bg-white text-slate-900" value="E-wallet" <?php echo $sale['PAYMENT_METHOD'] == 'E-wallet' ? 'selected' : ''; ?>>E-Wallet</option>
+                                <option class="bg-white text-slate-900" value="Online Banking" <?php echo $sale['PAYMENT_METHOD'] == 'Online Banking' ? 'selected' : ''; ?>>Online Banking</option>
                             </select>
                         </div>
 
@@ -214,15 +249,22 @@ $status_color = $sale['PAYMENT_STATUS'] == 'Completed' ? 'bg-green-500' : ($sale
                     <?php if($balance > 0): ?>
                     <div class="bg-white/5 p-6 rounded-3xl border border-white/10 relative z-10">
                         <form action="" method="POST">
+                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf, ENT_QUOTES); ?>">
                             <label class="text-[10px] font-black text-white uppercase block mb-3 tracking-widest">Receive New Payment</label>
-                            <div class="flex space-x-3">
+                            <div class="space-y-3">
                                 <div class="relative flex-1">
                                     <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">RM</span>
                                     <input type="number" step="0.01" max="<?php echo $balance; ?>" name="payment_amount" required placeholder="0.00" 
                                            class="w-full pl-12 pr-4 py-4 bg-white/10 border border-transparent rounded-xl outline-none font-mono font-bold text-white focus:border-[#B9D977] transition-colors">
                                 </div>
-                                <button type="submit" name="add_payment" class="bg-[#B9D977] text-slate-900 px-6 py-4 rounded-xl font-black shadow-lg hover:scale-105 transition-all">
-                                    Add
+                                <select name="payment_method" required class="w-full px-4 py-4 bg-white/10 border border-white/20 rounded-xl outline-none font-bold text-white focus:border-[#B9D977] transition-colors">
+                                    <option class="bg-white text-slate-900" value="Cash">Cash</option>
+                                    <option class="bg-white text-slate-900" value="Card">Card</option>
+                                    <option class="bg-white text-slate-900" value="E-wallet">E-Wallet</option>
+                                    <option class="bg-white text-slate-900" value="Online Banking">Online Banking</option>
+                                </select>
+                                <button type="submit" name="add_payment" class="w-full bg-[#B9D977] text-slate-900 px-6 py-4 rounded-xl font-black shadow-lg hover:scale-105 transition-all">
+                                    <i class="fa-solid fa-check mr-2"></i> Record Payment
                                 </button>
                             </div>
                             <p class="text-[10px] text-slate-400 mt-3 font-medium"><i class="fa-solid fa-circle-info mr-1"></i> Maximum acceptable payment is RM <?php echo number_format($balance, 2); ?></p>

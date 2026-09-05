@@ -6,15 +6,33 @@ if(!isset($_GET['product_id']) || empty($_GET['product_id'])) {
     exit;
 }
 
+if (session_status() === PHP_SESSION_NONE) session_start();
+if (empty($_SESSION['csrf_token'])) $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+$csrf = $_SESSION['csrf_token'];
+
 $product_id = mysqli_real_escape_string($conn, $_GET['product_id']);
 
 // ==========================================
 // HANDLE INLINE SUPPLIER ASSIGNMENT
 // ==========================================
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['assign_supplier'])) {
-    $new_supplier_id = mysqli_real_escape_string($conn, $_POST['supplier_id']);
+    if (empty($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        header("Location: inventory_view.php?product_id=" . urlencode($product_id) . "&msg=invalid");
+        exit;
+    }
+    $new_supplier_id = (int)($_POST['supplier_id'] ?? 0);
+    $supplier_check = mysqli_prepare($conn, "SELECT SUPPLIER_ID FROM SUPPLIER WHERE SUPPLIER_ID = ?");
+    mysqli_stmt_bind_param($supplier_check, 'i', $new_supplier_id);
+    mysqli_stmt_execute($supplier_check);
+    mysqli_stmt_store_result($supplier_check);
+    $supplier_exists = mysqli_stmt_num_rows($supplier_check) > 0;
+    mysqli_stmt_close($supplier_check);
+    if (!$supplier_exists) {
+        header("Location: inventory_view.php?product_id=" . urlencode($product_id) . "&msg=invalid");
+        exit;
+    }
     
-    $update_sql = "UPDATE PRODUCT SET SUPPLIER_ID = '$new_supplier_id' WHERE PRODUCT_ID = '$product_id'";
+    $update_sql = "UPDATE PRODUCT SET SUPPLIER_ID = $new_supplier_id WHERE PRODUCT_ID = '$product_id'";
     if (mysqli_query($conn, $update_sql)) {
         // Refresh the page to show the newly assigned supplier
         header("Location: inventory_view.php?product_id=$product_id&msg=assigned");
@@ -75,6 +93,9 @@ $is_low = ($row['STOCK_QUANTITY'] < 5);
                 <i class="fa-solid fa-circle-check mr-3 text-teal-500"></i>
                 Supplier assigned successfully!
             </div>
+        <?php endif; ?>
+        <?php if(isset($_GET['msg']) && $_GET['msg'] == 'invalid'): ?>
+            <div class="bg-red-50 text-red-700 p-4 rounded-xl mb-6 font-bold border border-red-100 max-w-6xl">Invalid supplier assignment.</div>
         <?php endif; ?>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl">
@@ -181,6 +202,7 @@ $is_low = ($row['STOCK_QUANTITY'] < 5);
                         <p class="text-slate-400 font-medium mb-6">No supplier is currently<br>assigned to this product.</p>
                         
                         <form action="" method="POST" class="w-full px-8 flex flex-col items-center">
+                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf, ENT_QUOTES); ?>">
                             <select name="supplier_id" required class="w-full p-3 mb-4 bg-slate-800 border border-slate-600 rounded-xl text-sm font-bold text-slate-300 focus:outline-none focus:border-[#0097B2]">
                                 <option value="">-- Choose Supplier --</option>
                                 <?php

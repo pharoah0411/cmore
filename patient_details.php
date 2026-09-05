@@ -32,6 +32,10 @@ function parse_malaysian_ic($ic) {
     return ['age' => 'N/A', 'dob' => 'N/A'];
 }
 
+function patient_html($value, $fallback = '') {
+    return htmlspecialchars((string)($value ?? $fallback), ENT_QUOTES, 'UTF-8');
+}
+
 $id = isset($_GET['id']) ? mysqli_real_escape_string($conn, $_GET['id']) : '';
 
 if (empty($id)) {
@@ -91,7 +95,7 @@ if ($comparison_stmt) {
                 <a href="patients.php" class="text-slate-400 text-sm font-bold uppercase tracking-widest hover:text-[#0097B2] transition">
                     <i class="fa-solid fa-arrow-left mr-2"></i> Back to Patient Page
                 </a>
-                <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight mt-4"><?php echo htmlspecialchars($patient['NAME']); ?></h1>
+                <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight mt-4"><?php echo patient_html($patient['NAME']); ?></h1>
                 <div class="flex items-center space-x-3 mt-2">
                     <span class="px-3 py-1 bg-slate-900 text-[#B9D977] rounded-lg text-[10px] font-black uppercase tracking-widest">
                         Patient ID: #<?php echo str_pad($patient['PATIENT_ID'], 4, '0', STR_PAD_LEFT); ?>
@@ -118,7 +122,7 @@ if ($comparison_stmt) {
                         <?php if(!empty($patient['IC_NUMBER'])): ?>
                         <div class="col-span-2">
                             <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">IC Number</p>
-                            <p class="text-slate-800 font-bold font-mono text-lg"><?php echo htmlspecialchars($patient['IC_NUMBER']); ?></p>
+                            <p class="text-slate-800 font-bold font-mono text-lg"><?php echo patient_html($patient['IC_NUMBER']); ?></p>
                         </div>
                         <div>
                             <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Age</p>
@@ -132,12 +136,12 @@ if ($comparison_stmt) {
 
                         <div class="col-span-2">
                             <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Phone Number</p>
-                            <p class="text-slate-800 font-bold text-lg"><?php echo htmlspecialchars($patient['PHONE_NUMBER']); ?></p>
+                            <p class="text-slate-800 font-bold text-lg"><?php echo patient_html($patient['PHONE_NUMBER']); ?></p>
                         </div>
                         
                         <div class="col-span-2 lg:col-span-4">
                             <p class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Address</p>
-                            <p class="text-slate-700 leading-relaxed font-medium"><?php echo htmlspecialchars($patient['ADDRESS']); ?></p>
+                            <p class="text-slate-700 leading-relaxed font-medium"><?php echo patient_html($patient['ADDRESS']); ?></p>
                         </div>
                     </div>
                 </section>
@@ -251,15 +255,15 @@ if ($comparison_stmt) {
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 pb-4 border-b border-slate-200">
                                 <div>
                                     <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Patient Name</span>
-                                    <p class="font-bold text-slate-800"><?php echo htmlspecialchars($patient['NAME']); ?></p>
+                                    <p class="font-bold text-slate-800"><?php echo patient_html($patient['NAME']); ?></p>
                                 </div>
                                 <div>
                                     <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phone Number</span>
-                                    <p class="font-bold text-slate-800"><?php echo htmlspecialchars($patient['PHONE_NUMBER']); ?></p>
+                                    <p class="font-bold text-slate-800"><?php echo patient_html($patient['PHONE_NUMBER']); ?></p>
                                 </div>
                                 <div class="text-right">
                                     <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Optometrist</span>
-                                    <p class="text-sm font-bold text-[#0097B2]"><?php echo htmlspecialchars($exam['DOC_NAME']); ?></p>
+                                    <p class="text-sm font-bold text-[#0097B2]"><?php echo patient_html($exam['DOC_NAME']); ?></p>
                                 </div>
                             </div>
                             <div class="flex justify-between items-start">
@@ -284,11 +288,11 @@ if ($comparison_stmt) {
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                                 <div class="bg-white p-4 rounded-2xl border border-slate-100">
                                     <p class="text-[9px] font-black text-slate-400 uppercase mb-1">Prescription</p>
-                                    <p class="text-sm font-mono font-bold text-slate-700"><?php echo htmlspecialchars($exam['PRESCRIPTION_RESULT']); ?></p>
+                                    <p class="text-sm font-mono font-bold text-slate-700"><?php echo patient_html($exam['PRESCRIPTION_RESULT']); ?></p>
                                 </div>
                                 <div class="bg-white p-4 rounded-2xl border border-slate-100">
                                     <p class="text-[9px] font-black text-slate-400 uppercase mb-1">Visual Acuity</p>
-                                    <p class="text-sm font-mono font-bold text-slate-700"><?php echo htmlspecialchars($exam['VISUAL_ACUITY_RESULTS']); ?></p>
+                                    <p class="text-sm font-mono font-bold text-slate-700"><?php echo patient_html($exam['VISUAL_ACUITY_RESULTS']); ?></p>
                                 </div>
                             </div>
                             <div class="mt-4 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
@@ -326,7 +330,7 @@ if ($comparison_stmt) {
                             <?php if(!empty($exam['CLINICAL_NOTES'])): ?>
                             <div class="mt-4 px-2">
                                 <p class="text-[9px] font-black text-slate-400 uppercase mb-1">Clinical Notes</p>
-                                <p class="text-xs text-slate-500 leading-relaxed italic">"<?php echo nl2br(htmlspecialchars($exam['CLINICAL_NOTES'])); ?>"</p>
+                                <p class="text-xs text-slate-500 leading-relaxed italic">"<?php echo nl2br(patient_html($exam['CLINICAL_NOTES'])); ?>"</p>
                             </div>
                             <?php endif; ?>
                         </div>

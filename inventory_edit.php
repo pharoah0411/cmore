@@ -26,13 +26,42 @@ $row = mysqli_fetch_assoc($result);
 
 // Handle Form Submission for Update
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $category       = mysqli_real_escape_string($conn, $_POST['category']);
-    $brand_name     = mysqli_real_escape_string($conn, $_POST['brand_name']);
-    $unit_price     = mysqli_real_escape_string($conn, $_POST['unit_price']);
-    $minimum_price  = mysqli_real_escape_string($conn, $_POST['minimum_price']);
-    $stock_quantity = mysqli_real_escape_string($conn, $_POST['stock_quantity']);
+    $category_raw = trim($_POST['category'] ?? '');
+    $brand_name_raw = trim($_POST['brand_name'] ?? '');
+    $unit_price_raw = trim($_POST['unit_price'] ?? '');
+    $minimum_price_raw = trim($_POST['minimum_price'] ?? '');
+    $stock_quantity_raw = trim($_POST['stock_quantity'] ?? '');
+    $category       = mysqli_real_escape_string($conn, $category_raw);
+    $brand_name     = mysqli_real_escape_string($conn, $brand_name_raw);
+    $unit_price     = mysqli_real_escape_string($conn, $unit_price_raw);
+    $minimum_price  = mysqli_real_escape_string($conn, $minimum_price_raw);
+    $stock_quantity = mysqli_real_escape_string($conn, $stock_quantity_raw);
     $expiry_date    = !empty($_POST['expiry_date']) ? "'" . mysqli_real_escape_string($conn, $_POST['expiry_date']) . "'" : "NULL";
-    $supplier_id    = !empty($_POST['supplier_id']) ? "'" . mysqli_real_escape_string($conn, $_POST['supplier_id']) . "'" : "NULL";
+    $supplier_id    = "NULL";
+    $selected_supplier_id = (int)($_POST['supplier_id'] ?? 0);
+    if ($selected_supplier_id > 0) {
+        $supplier_check = mysqli_prepare($conn, "SELECT SUPPLIER_ID FROM supplier WHERE SUPPLIER_ID = ?");
+        mysqli_stmt_bind_param($supplier_check, 'i', $selected_supplier_id);
+        mysqli_stmt_execute($supplier_check);
+        mysqli_stmt_store_result($supplier_check);
+        $supplier_exists = mysqli_stmt_num_rows($supplier_check) > 0;
+        mysqli_stmt_close($supplier_check);
+        if ($supplier_exists) {
+            $supplier_id = (string)$selected_supplier_id;
+        } else {
+            $error_msg = "The selected supplier does not exist.";
+        }
+    }
+
+    if ($brand_name_raw === '' || $category_raw === '') {
+        $error_msg = "Product name and category are required.";
+    } elseif (!is_numeric($unit_price_raw) || (float)$unit_price_raw < 0 || !preg_match('/^\d+(\.\d{1,2})?$/', $unit_price_raw)) {
+        $error_msg = "Unit price must be a non-negative number with up to 2 decimal places.";
+    } elseif (!is_numeric($minimum_price_raw) || (float)$minimum_price_raw < 0 || !preg_match('/^\d+(\.\d{1,2})?$/', $minimum_price_raw)) {
+        $error_msg = "Minimum price must be a non-negative number with up to 2 decimal places.";
+    } elseif (!ctype_digit($stock_quantity_raw)) {
+        $error_msg = "Stock quantity must be a whole number of 0 or more.";
+    }
 
     // Image Upload Logic for Edit
     $image_update_query = "";

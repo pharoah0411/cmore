@@ -60,8 +60,8 @@ if ($export === 'pdf' || $export === 'excel') {
             $month_start = date('Y-m-01');
             $month_end = date('Y-m-t');
 
-            $month_data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS sale_count, COALESCE(SUM(TOTAL_AMOUNT),0) AS gross_revenue, COALESCE(SUM(PAID_AMOUNT),0) AS paid_revenue FROM SALES WHERE SALE_DATE BETWEEN '$month_start' AND '$month_end'"));
-            $outstanding = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS open_sales, COALESCE(SUM(TOTAL_AMOUNT - PAID_AMOUNT),0) AS balance FROM SALES WHERE PAYMENT_STATUS <> 'Paid'"));
+            $month_data = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS sale_count, COALESCE(SUM(TOTAL_AMOUNT),0) AS gross_revenue, COALESCE(SUM(PAID_AMOUNT),0) AS paid_revenue FROM SALES WHERE SALE_DATE >= '{$month_start} 00:00:00' AND SALE_DATE < DATE_ADD('{$month_end}', INTERVAL 1 DAY)"));
+            $outstanding = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS open_sales, COALESCE(SUM(GREATEST(TOTAL_AMOUNT - PAID_AMOUNT, 0)),0) AS balance FROM SALES WHERE TOTAL_AMOUNT > PAID_AMOUNT"));
             $top_products = mysqli_query($conn, "SELECT p.BRAND_NAME, SUM(si.QUANTITY) AS qty_sold, COALESCE(SUM(si.QUANTITY * p.UNIT_PRICE),0) AS revenue FROM SALES_ITEM si JOIN PRODUCT p ON si.PRODUCT_ID = p.PRODUCT_ID GROUP BY p.PRODUCT_ID, p.BRAND_NAME ORDER BY qty_sold DESC LIMIT 6");
             $top_customers = mysqli_query($conn, "SELECT COALESCE(p.NAME, 'Walk-in') AS customer_name, COALESCE(SUM(s.TOTAL_AMOUNT),0) AS total_spent FROM SALES s LEFT JOIN PATIENT p ON s.PATIENT_ID = p.PATIENT_ID GROUP BY s.PATIENT_ID, p.NAME ORDER BY total_spent DESC LIMIT 6");
             ?>

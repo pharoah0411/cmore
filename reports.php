@@ -154,7 +154,7 @@ if ($unconverted_result) $unconverted_patients = (int)mysqli_fetch_assoc($unconv
                     <p class="text-slate-400 text-sm mb-6">Define your parameters to generate a specific data export.</p>
                 </div>
 
-                <form action="report_custom.php" method="GET" class="relative z-10 space-y-4">
+                <form id="customReportForm" action="report_custom.php" method="GET" class="relative z-10 space-y-4" onsubmit="return validateCustomReportForm()">
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div class="space-y-2">
                             <label class="text-[10px] font-black uppercase tracking-widest text-white ml-1">Report Type</label>
@@ -182,12 +182,22 @@ if ($unconverted_result) $unconverted_patients = (int)mysqli_fetch_assoc($unconv
                     <div id="custom_range_fields" class="grid grid-cols-1 lg:grid-cols-2 gap-4 hidden">
                         <div class="space-y-2">
                             <label class="text-[10px] font-black uppercase tracking-widest text-white ml-1">Start date</label>
-                            <input type="date" name="start_date" class="w-full p-4 bg-white/5 border border-white/10 rounded-2xl outline-none text-white font-semibold focus:border-[#0097B2] transition">
+                            <input id="custom_start_date" type="date" name="start_date" class="w-full p-4 bg-white/5 border border-white/10 rounded-2xl outline-none text-white font-semibold focus:border-[#0097B2] transition">
                         </div>
                         <div class="space-y-2">
                             <label class="text-[10px] font-black uppercase tracking-widest text-white ml-1">End date</label>
-                            <input type="date" name="end_date" class="w-full p-4 bg-white/5 border border-white/10 rounded-2xl outline-none text-white font-semibold focus:border-[#0097B2] transition">
+                            <input id="custom_end_date" type="date" name="end_date" class="w-full p-4 bg-white/5 border border-white/10 rounded-2xl outline-none text-white font-semibold focus:border-[#0097B2] transition">
                         </div>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black uppercase tracking-widest text-white ml-1">Category (inventory reports)</label>
+                        <select name="category" class="w-full p-4 bg-white/5 border border-white/10 rounded-2xl outline-none text-white font-semibold focus:border-[#0097B2] transition appearance-none">
+                            <option value="" class="text-slate-900">All Categories</option>
+                            <option value="Frames" class="text-slate-900">Frames</option>
+                            <option value="Contact Lenses" class="text-slate-900">Contact Lenses</option>
+                            <option value="Solutions" class="text-slate-900">Solutions</option>
+                            <option value="Accessories" class="text-slate-900">Accessories</option>
+                        </select>
                     </div>
                     <div class="pt-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <button type="submit" name="action" value="view" class="w-full bg-[#0097B2] text-white py-4 rounded-2xl font-bold shadow-lg shadow-teal-900/50 hover:bg-teal-500 transition-all flex justify-center items-center">
@@ -204,8 +214,21 @@ if ($unconverted_result) $unconverted_patients = (int)mysqli_fetch_assoc($unconv
                 <script>
                     function updateReportPeriodFields() {
                         const period = document.getElementById('report_period').value;
+                        const custom = period === 'custom';
                         document.getElementById('month_picker_field').classList.toggle('hidden', period !== 'month');
-                        document.getElementById('custom_range_fields').classList.toggle('hidden', period !== 'custom');
+                        document.getElementById('custom_range_fields').classList.toggle('hidden', !custom);
+                        document.getElementById('custom_start_date').required = custom;
+                        document.getElementById('custom_end_date').required = custom;
+                    }
+                    function validateCustomReportForm() {
+                        if (document.getElementById('report_period').value !== 'custom') return true;
+                        const start = document.getElementById('custom_start_date').value;
+                        const end = document.getElementById('custom_end_date').value;
+                        if (!start || !end || start > end) {
+                            alert('Choose a valid custom date range. The start date cannot be after the end date.');
+                            return false;
+                        }
+                        return true;
                     }
                     document.addEventListener('DOMContentLoaded', updateReportPeriodFields);
                 </script>

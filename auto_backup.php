@@ -88,7 +88,8 @@ try {
     }
     $_SESSION['flash'] = ['type' => 'error', 'msg' => 'Encrypted backup failed. Check the server error log.'];
     if (isset($_GET['logout']) && $_GET['logout'] === 'true') {
-        header('Location: login.php');
+        // Keep the session active so staff can retry instead of losing unsaved work.
+        header('Location: backup.php');
         exit();
     }
 }

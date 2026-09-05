@@ -121,6 +121,7 @@ unset($_SESSION['flash']);
                         <option value="low" <?php echo $filter_selected === 'low' ? 'selected' : ''; ?>>Low Stock (&lt; 5)</option>
                         <option value="expired" <?php echo $filter_selected === 'expired' ? 'selected' : ''; ?>>Expired</option>
                         <option value="with_image" <?php echo $filter_selected === 'with_image' ? 'selected' : ''; ?>>With Picture</option>
+                        <option value="no_image" <?php echo $filter_selected === 'no_image' ? 'selected' : ''; ?>>Without Picture</option>
                     </select>
                     <i class="fa-solid fa-chevron-down absolute right-6 top-1/2 -translate-y-1/2 text-slate-400"></i>
                 </div>

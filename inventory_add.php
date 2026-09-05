@@ -111,37 +111,73 @@ $error_msg = '';
 
 // Handle Product Form Submission
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $brand_name     = mysqli_real_escape_string($conn, $_POST['brand_name']);
-    $category       = mysqli_real_escape_string($conn, $_POST['category']);
-    $unit_price     = mysqli_real_escape_string($conn, $_POST['unit_price']);
-    $minimum_price  = mysqli_real_escape_string($conn, $_POST['minimum_price']);
-    $stock_quantity = mysqli_real_escape_string($conn, $_POST['stock_quantity']);
+    $brand_name_raw = trim($_POST['brand_name'] ?? '');
+    $category_raw = trim($_POST['category'] ?? '');
+    $unit_price_raw = trim($_POST['unit_price'] ?? '');
+    $minimum_price_raw = trim($_POST['minimum_price'] ?? '');
+    $stock_quantity_raw = trim($_POST['stock_quantity'] ?? '');
+    $brand_name     = mysqli_real_escape_string($conn, $brand_name_raw);
+    $category       = mysqli_real_escape_string($conn, $category_raw);
+    $unit_price     = mysqli_real_escape_string($conn, $unit_price_raw);
+    $minimum_price  = mysqli_real_escape_string($conn, $minimum_price_raw);
+    $stock_quantity = mysqli_real_escape_string($conn, $stock_quantity_raw);
     $expiry_date    = !empty($_POST['expiry_date']) ? "'" . mysqli_real_escape_string($conn, $_POST['expiry_date']) . "'" : "NULL";
     
     $supplier_id    = "NULL";
 
-    // Category now comes from the managed dropdown and is required.
-    if (trim($_POST['category'] ?? '') === '') {
+    if ($brand_name_raw === '' || $category_raw === '') {
+        $error_msg = "Product name and category are required.";
+    } elseif (!is_numeric($unit_price_raw) || (float)$unit_price_raw < 0 || !preg_match('/^\d+(\.\d{1,2})?$/', $unit_price_raw)) {
+        $error_msg = "Retail price must be a non-negative number with up to 2 decimal places.";
+    } elseif (!is_numeric($minimum_price_raw) || (float)$minimum_price_raw < 0 || !preg_match('/^\d+(\.\d{1,2})?$/', $minimum_price_raw)) {
+        $error_msg = "Minimum price must be a non-negative number with up to 2 decimal places.";
+    } elseif (!ctype_digit($stock_quantity_raw)) {
+        $error_msg = "Stock quantity must be a whole number of 0 or more.";
+    } elseif (trim($_POST['category'] ?? '') === '') {
         $error_msg = "Please select or add a category before saving.";
     }
 
     // Handle New Supplier Insertion if toggle is active
     if(empty($error_msg) && isset($_POST['is_new_supplier']) && $_POST['is_new_supplier'] == '1') {
-        $supp_name    = mysqli_real_escape_string($conn, $_POST['new_supplier_name']);
-        $supp_contact = mysqli_real_escape_string($conn, $_POST['new_supplier_contact']);
-        $supp_phone   = mysqli_real_escape_string($conn, $_POST['new_supplier_phone']);
-        $supp_email   = mysqli_real_escape_string($conn, $_POST['new_supplier_email']);
+        $supp_name_raw = trim($_POST['new_supplier_name'] ?? '');
+        $supp_contact_raw = trim($_POST['new_supplier_contact'] ?? '');
+        $supp_phone_raw = trim($_POST['new_supplier_phone'] ?? '');
+        $supp_email_raw = trim($_POST['new_supplier_email'] ?? '');
+        if ($supp_name_raw === '') {
+            $error_msg = "Supplier company name is required.";
+        } elseif ($supp_phone_raw !== '' && !preg_match('/^[0-9+()\- .]{7,25}$/', $supp_phone_raw)) {
+            $error_msg = "Enter a valid supplier phone number.";
+        } elseif ($supp_email_raw !== '' && !filter_var($supp_email_raw, FILTER_VALIDATE_EMAIL)) {
+            $error_msg = "Enter a valid supplier email address.";
+        }
+        $supp_name    = mysqli_real_escape_string($conn, $supp_name_raw);
+        $supp_contact = mysqli_real_escape_string($conn, $supp_contact_raw);
+        $supp_phone   = mysqli_real_escape_string($conn, $supp_phone_raw);
+        $supp_email   = mysqli_real_escape_string($conn, $supp_email_raw);
 
-        $supp_insert_sql = "INSERT INTO supplier (COMPANY_NAME, CONTACT_PERSON, PHONE_NUMBER, EMAIL) 
+        $supp_insert_sql = "INSERT INTO supplier (COMPANY_NAME, CONTACT_PERSON, PHONE_NUMBER, EMAIL)
                             VALUES ('$supp_name', '$supp_contact', '$supp_phone', '$supp_email')";
         
-        if(mysqli_query($conn, $supp_insert_sql)) {
+        if(empty($error_msg) && mysqli_query($conn, $supp_insert_sql)) {
             $supplier_id = mysqli_insert_id($conn);
         } else {
             $error_msg = "Error adding new supplier: " . mysqli_error($conn);
         }
     } elseif(empty($error_msg)) {
-        $supplier_id = !empty($_POST['supplier_id']) ? "'" . mysqli_real_escape_string($conn, $_POST['supplier_id']) . "'" : "NULL";
+        $selected_supplier_id = (int)($_POST['supplier_id'] ?? 0);
+        if ($selected_supplier_id > 0) {
+            $supplier_check = mysqli_prepare($conn, "SELECT SUPPLIER_ID FROM supplier WHERE SUPPLIER_ID = ?");
+            mysqli_stmt_bind_param($supplier_check, 'i', $selected_supplier_id);
+            mysqli_stmt_execute($supplier_check);
+            mysqli_stmt_store_result($supplier_check);
+            $supplier_exists = mysqli_stmt_num_rows($supplier_check) > 0;
+            mysqli_stmt_close($supplier_check);
+            if (!$supplier_exists) {
+                $error_msg = "The selected supplier does not exist.";
+            } else {
+                $supplier_id = (string)$selected_supplier_id;
+            }
+        }
     }
 
     // Proceed to insert product if no errors occurred
@@ -261,17 +297,17 @@ $selected_cat = isset($_POST['category']) ? $_POST['category'] : '';
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Retail Price (RM) <span class="text-red-500">*</span></label>
-                                <input type="number" step="0.01" name="unit_price" required value="<?php echo isset($_POST['unit_price']) ? $_POST['unit_price'] : ''; ?>" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#0097B2] focus:bg-white outline-none transition-all font-semibold text-slate-700 text-[#0097B2]" placeholder="0.00">
+                                <input type="number" step="0.01" min="0" name="unit_price" required value="<?php echo isset($_POST['unit_price']) ? $_POST['unit_price'] : ''; ?>" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#0097B2] focus:bg-white outline-none transition-all font-semibold text-slate-700 text-[#0097B2]" placeholder="0.00">
                             </div>
                             <div>
                                 <label class="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Min Price (RM) <span class="text-red-500">*</span></label>
-                                <input type="number" step="0.01" name="minimum_price" required value="<?php echo isset($_POST['minimum_price']) ? $_POST['minimum_price'] : '0.00'; ?>" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-red-400 focus:bg-white outline-none transition-all font-semibold text-slate-700" placeholder="0.00">
+                                <input type="number" step="0.01" min="0" name="minimum_price" required value="<?php echo isset($_POST['minimum_price']) ? $_POST['minimum_price'] : '0.00'; ?>" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-red-400 focus:bg-white outline-none transition-all font-semibold text-slate-700" placeholder="0.00">
                             </div>
                         </div>
 
                         <div>
                             <label class="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Initial Stock <span class="text-red-500">*</span></label>
-                            <input type="number" name="stock_quantity" required value="<?php echo isset($_POST['stock_quantity']) ? $_POST['stock_quantity'] : '0'; ?>" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#0097B2] focus:bg-white outline-none transition-all font-semibold text-slate-700" placeholder="0">
+                            <input type="number" step="1" min="0" name="stock_quantity" required value="<?php echo isset($_POST['stock_quantity']) ? $_POST['stock_quantity'] : '0'; ?>" class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:border-[#0097B2] focus:bg-white outline-none transition-all font-semibold text-slate-700" placeholder="0">
                         </div>
                     </div>
 

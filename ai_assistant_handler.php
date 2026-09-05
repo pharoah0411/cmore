@@ -8,9 +8,10 @@ header('Content-Type: application/json');
 
 // 1. Get the floating widget's input
 $data = json_decode(file_get_contents('php://input'), true);
+$json_error = json_last_error();
 $user_query = trim($data['query'] ?? '');
 
-if (empty($user_query)) {
+if ($json_error !== JSON_ERROR_NONE || !is_array($data) || empty($user_query)) {
     echo json_encode(['reply' => 'Please ask a question.']);
     exit;
 }
@@ -73,7 +74,7 @@ $system_instruction = "You are a backend database routing assistant for an optic
                     . "- 'check_today' (when asking about today's appointments or schedule)\n"
                     . "- 'market_insights' (when asking about target markets, customer segments, best-selling categories, or what to promote)\n"
                     . "- 'general' (for greetings, help, or unrelated questions)\n\n"
-                    . "Use the patient's or product's name as search_term. For general questions, use an empty search_term. "
+                    . "Use only the person's name or product/category name as search_term. Remove words such as 'find', 'stock', 'appointment', 'prescription', 'sales', and 'price' from it. For general questions, use an empty search_term. "
                     . "Return ONLY a raw JSON object with exactly the keys 'intent' and 'search_term'. Do not include markdown. "
                     . "Example Output: {\"intent\": \"check_appointment\", \"search_term\": \"John\"}";
 
@@ -87,7 +88,8 @@ foreach ($models as $model_name) {
     $url = "https://generativelanguage.googleapis.com/v1beta/models/" . $model_name . ":generateContent?key=" . $apiKey;
     
     $payload = [
-        "contents" => [["parts" => [["text" => $system_instruction . "\n\nUser Query: " . $user_query]]]],
+        "systemInstruction" => ["parts" => [["text" => $system_instruction]]],
+        "contents" => [["role" => "user", "parts" => [["text" => $user_query]]]],
         "generationConfig" => [
             "temperature" => 0.1,
             "maxOutputTokens" => 80,
@@ -125,12 +127,31 @@ if (!$ai_raw_text) {
     exit;
 }
 
-$routing = json_decode(trim($ai_raw_text), true);
+// Models occasionally wrap valid JSON in markdown despite the JSON response mode.
+$routing_text = trim($ai_raw_text);
+$routing_text = preg_replace('/^```(?:json)?\s*|\s*```$/i', '', $routing_text);
+$routing = json_decode($routing_text, true);
+if (!is_array($routing)) {
+    $json_start = strpos($routing_text, '{');
+    $json_end = strrpos($routing_text, '}');
+    if ($json_start !== false && $json_end > $json_start) {
+        $routing = json_decode(substr($routing_text, $json_start, $json_end - $json_start + 1), true);
+    }
+}
 $allowed_intents = ['find_patient', 'check_prescription', 'check_stock', 'check_appointment', 'check_sales', 'find_supplier', 'check_low_stock', 'check_expiry', 'check_today', 'market_insights', 'general'];
 $intent = is_array($routing) && in_array($routing['intent'] ?? '', $allowed_intents, true)
     ? $routing['intent']
     : 'general';
 $search_term = is_array($routing) ? trim((string)($routing['search_term'] ?? '')) : '';
+$search_term = preg_replace('/\s+/', ' ', $search_term);
+$search_term = trim($search_term, " \t\n\r\0\x0B'\"");
+
+// Keep routing useful when the model repeats the request instead of extracting the entity.
+if ($intent !== 'general' && $search_term !== '') {
+    $search_term = preg_replace('/^(find|show|check|what is|what are|when is|has|contact for|stock for|price of)\s+/i', '', $search_term);
+    $search_term = preg_replace('/\s+(prescription|appointment|appointments|sales|billing|stock|price|prices)\s*\??$/i', '', $search_term);
+    $search_term = trim($search_term, " \t\n\r\0\x0B'\"");
+}
 
 // CONTEXT MEMORY: Inject previous patient name if pronoun is used
 if (empty($search_term) || in_array(strtolower($search_term), ['he', 'she', 'his', 'her', 'him', 'they', 'them', 'their'])) {

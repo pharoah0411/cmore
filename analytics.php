@@ -159,6 +159,11 @@ $blockedUserRow = one($conn, "SELECT u.NAME name, u.ROLE role, COUNT(*) c
     FROM audit_log l JOIN user u ON u.USER_ID = l.USER_ID
     WHERE l.ACTION LIKE '%unauthorized%' GROUP BY l.USER_ID ORDER BY c DESC LIMIT 1");
 $blockedUser = $blockedUserRow ? $blockedUserRow['name'].' ('.$blockedUserRow['role'].')' : '';
+$blockedAttempts = rows($conn, "SELECT l.ACTION action, l.TABLE_NAME table_name, l.RECORD_ID record_id,
+        l.CREATED_AT created_at, COALESCE(u.NAME, 'Unknown user') name, COALESCE(u.ROLE, 'Unknown role') role
+    FROM audit_log l LEFT JOIN user u ON u.USER_ID = l.USER_ID
+    WHERE l.ACTION LIKE '%unauthorized%'
+    ORDER BY l.CREATED_AT DESC LIMIT 10");
 
 /* ---- assemble payload for the frontend ---- */
 $A = [
@@ -181,6 +186,7 @@ $A = [
         'logins'=>i($act['logins']), 'pwResets'=>i($act['pwResets']),
         'recordEdits'=>i($act['recordEdits']), 'blocked'=>i($act['blocked']),
         'blockedUser'=>$blockedUser,
+        'blockedAttempts'=>$blockedAttempts,
     ],
 ];
 ?>
@@ -375,6 +381,13 @@ $A = [
                 <div id="activityBars" class="relative z-10 space-y-4 flex-1"></div>
                 <div id="securityNote" class="relative z-10 hidden mt-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl p-4">
                     <p class="text-rose-300 text-xs font-bold flex items-center gap-2"><i class="fa-solid fa-shield-halved"></i> <span id="securityText"></span></p>
+                    <div class="mt-4 rounded-2xl border border-rose-500/20 bg-slate-950/30 p-3">
+                        <p class="mb-3 text-[10px] font-black uppercase tracking-widest text-rose-200">Recent blocked attempts</p>
+                        <div id="blockedDetails" class="max-h-64 space-y-3 overflow-y-auto pr-2 custom-scrollbar"></div>
+                    </div>
+                </div>
+                <div id="securityClear" class="relative z-10 mt-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4">
+                    <p class="text-emerald-300 text-xs font-bold flex items-center gap-2"><i class="fa-solid fa-shield-check"></i> No blocked access attempts recorded.</p>
                 </div>
             </div>
         </div>
@@ -623,8 +636,18 @@ function renderActivity(){
         </div>`).join("");
     if(A.activity.blocked>0){
         document.getElementById("securityNote").classList.remove("hidden");
+        document.getElementById("securityClear").classList.add("hidden");
         document.getElementById("securityText").textContent =
             A.activity.blocked+" blocked access attempts by "+A.activity.blockedUser+" — worth reviewing.";
+        document.getElementById("blockedDetails").innerHTML = A.activity.blockedAttempts.map(item => `
+            <div class="rounded-xl border border-rose-500/20 bg-slate-950/30 p-3 text-[11px]">
+                <div class="flex justify-between gap-3">
+                    <span class="font-bold text-white">${item.name} <span class="text-rose-300">(${item.role})</span></span>
+                    <span class="text-slate-400 whitespace-nowrap">${item.created_at}</span>
+                </div>
+                <p class="mt-1 text-rose-200">${item.action}</p>
+                <p class="mt-1 text-slate-400">Where: ${item.table_name || 'page access'}${item.record_id ? ' #' + item.record_id : ''}</p>
+            </div>`).join("");
     }
 }
 

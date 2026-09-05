@@ -6,16 +6,26 @@ if(!isset($_GET['product_id']) || empty($_GET['product_id'])) {
     exit;
 }
 
+if (session_status() === PHP_SESSION_NONE) session_start();
+if (empty($_SESSION['csrf_token'])) $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+$csrf = $_SESSION['csrf_token'];
+
 $product_id = mysqli_real_escape_string($conn, $_GET['product_id']);
 $success_msg = '';
 $error_msg = '';
 
 // Handle Form Submission
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $action = $_POST['action']; // 'add' or 'deduct'
-    $amount = intval($_POST['amount']);
+    if (empty($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+        $error_msg = "Your session expired. Please refresh and try again.";
+    }
+    $action = $_POST['action'] ?? '';
+    $amount_raw = trim($_POST['amount'] ?? '');
+    $amount = ctype_digit($amount_raw) ? (int)$amount_raw : 0;
 
-    if($amount <= 0) {
+    if(empty($error_msg) && !in_array($action, ['add', 'deduct'], true)) {
+        $error_msg = "Choose whether to increase or decrease stock.";
+    } elseif(empty($error_msg) && $amount <= 0) {
         $error_msg = "Please enter a valid amount greater than 0.";
     } else {
         // Always fetch the absolute latest stock from DB before calculating
@@ -130,6 +140,7 @@ $current_stock = intval($row['STOCK_QUANTITY']);
 
             <div class="md:col-span-2 bg-white rounded-[2.5rem] border border-slate-100 shadow-xl p-10">
                 <form action="" method="POST">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf, ENT_QUOTES); ?>">
                     
                     <div class="grid grid-cols-2 gap-6 mb-8 border-b border-slate-100 pb-8">
                         <div>

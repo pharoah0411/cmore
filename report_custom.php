@@ -6,6 +6,7 @@ $period = $_GET['period'] ?? 'last_6_months';
 $month = $_GET['month'] ?? '';
 $start_date = $_GET['start_date'] ?? '';
 $end_date = $_GET['end_date'] ?? '';
+$category = trim($_GET['category'] ?? '');
 
 if ($period === 'last_6_months') {
     $safe_start = date('Y-m-d', strtotime('-6 months'));
@@ -23,19 +24,33 @@ if ($period === 'last_6_months') {
         $safe_end = date('Y-m-d');
     }
 } elseif ($period === 'custom' && $start_date && $end_date) {
-    $safe_start = $start_date;
-    $safe_end = $end_date;
+    $start_value = DateTime::createFromFormat('!Y-m-d', $start_date);
+    $end_value = DateTime::createFromFormat('!Y-m-d', $end_date);
+    if ($start_value && $end_value && $start_value <= $end_value) {
+        $safe_start = $start_value->format('Y-m-d');
+        $safe_end = $end_value->format('Y-m-d');
+    } else {
+        $safe_start = date('Y-m-d', strtotime('-6 months'));
+        $safe_end = date('Y-m-d');
+    }
 } else {
     $safe_start = date('Y-m-d', strtotime('-6 months'));
     $safe_end = date('Y-m-d');
 }
+
+$safe_start_sql = mysqli_real_escape_string($conn, $safe_start);
+$safe_end_sql = mysqli_real_escape_string($conn, $safe_end);
+$category_sql = mysqli_real_escape_string($conn, $category);
+$sales_date_sql = "s.SALE_DATE >= '{$safe_start_sql} 00:00:00' AND s.SALE_DATE < DATE_ADD('{$safe_end_sql}', INTERVAL 1 DAY)";
+$exam_date_sql = "EXAM_DATE >= '{$safe_start_sql}' AND EXAM_DATE < DATE_ADD('{$safe_end_sql}', INTERVAL 1 DAY)";
+$inventory_category_sql = $category !== '' ? " AND p.CATEGORY = '{$category_sql}'" : '';
 
 $export = $_GET['export'] ?? '';
 if ($export === 'pdf' || $export === 'excel') {
     $report_data = [];
     $export_rows = [];
     if($type === 'sales') {
-        $report_rows = mysqli_query($conn, "SELECT s.SALE_ID, p.NAME AS patient_name, u.NAME AS staff_name, s.SALE_DATE, s.TOTAL_AMOUNT, s.PAID_AMOUNT, s.PAYMENT_METHOD, s.PAYMENT_STATUS FROM SALES s LEFT JOIN PATIENT p ON s.PATIENT_ID = p.PATIENT_ID LEFT JOIN USER u ON s.STAFF_ID = u.USER_ID WHERE s.SALE_DATE BETWEEN '$safe_start' AND '$safe_end' ORDER BY s.SALE_DATE DESC LIMIT 100");
+        $report_rows = mysqli_query($conn, "SELECT s.SALE_ID, p.NAME AS patient_name, u.NAME AS staff_name, s.SALE_DATE, s.TOTAL_AMOUNT, s.PAID_AMOUNT, s.PAYMENT_METHOD, s.PAYMENT_STATUS FROM SALES s LEFT JOIN PATIENT p ON s.PATIENT_ID = p.PATIENT_ID LEFT JOIN USER u ON s.STAFF_ID = u.USER_ID WHERE {$sales_date_sql} ORDER BY s.SALE_DATE DESC LIMIT 100");
         while($row = mysqli_fetch_assoc($report_rows)) {
             $report_data[] = $row;
         }
@@ -53,7 +68,7 @@ if ($export === 'pdf' || $export === 'excel') {
             ];
         }
     } elseif($type === 'inventory') {
-        $report_rows = mysqli_query($conn, "SELECT p.PRODUCT_ID, p.BRAND_NAME, p.CATEGORY, p.STOCK_QUANTITY, p.UNIT_PRICE, p.EXPIRY_DATE FROM PRODUCT p ORDER BY p.BRAND_NAME ASC LIMIT 100");
+        $report_rows = mysqli_query($conn, "SELECT p.PRODUCT_ID, p.BRAND_NAME, p.CATEGORY, p.STOCK_QUANTITY, p.UNIT_PRICE, p.EXPIRY_DATE FROM PRODUCT p WHERE 1=1 {$inventory_category_sql} ORDER BY p.BRAND_NAME ASC LIMIT 100");
         while($row = mysqli_fetch_assoc($report_rows)) {
             $report_data[] = $row;
         }
@@ -82,7 +97,7 @@ if ($export === 'pdf' || $export === 'excel') {
             ];
         }
     } else {
-        $report_rows = mysqli_query($conn, "SELECT EXAM_ID, PATIENT_ID, OPTOMETRIST_ID, EXAM_DATE FROM EYE_EXAMINATION ORDER BY EXAM_DATE DESC LIMIT 100");
+        $report_rows = mysqli_query($conn, "SELECT EXAM_ID, PATIENT_ID, OPTOMETRIST_ID, EXAM_DATE FROM EYE_EXAMINATION WHERE {$exam_date_sql} ORDER BY EXAM_DATE DESC LIMIT 100");
         while($row = mysqli_fetch_assoc($report_rows)) {
             $report_data[] = $row;
         }
@@ -153,6 +168,7 @@ if ($export === 'pdf' || $export === 'excel') {
                 <div class="flex flex-col sm:flex-row gap-3 text-sm text-slate-500">
                     <span class="bg-slate-50 px-4 py-3 rounded-2xl border border-slate-200">Start: <?php echo htmlspecialchars($safe_start); ?></span>
                     <span class="bg-slate-50 px-4 py-3 rounded-2xl border border-slate-200">End: <?php echo htmlspecialchars($safe_end); ?></span>
+                    <?php if ($category !== ''): ?><span class="bg-slate-50 px-4 py-3 rounded-2xl border border-slate-200">Category: <?php echo htmlspecialchars($category); ?></span><?php endif; ?>
                 </div>
             </div>
         </div>
@@ -160,7 +176,7 @@ if ($export === 'pdf' || $export === 'excel') {
         <?php
         $report_data = [];
         if($type === 'sales') {
-            $report_rows = mysqli_query($conn, "SELECT s.SALE_ID, p.NAME AS patient_name, u.NAME AS staff_name, s.SALE_DATE, s.TOTAL_AMOUNT, s.PAID_AMOUNT, s.PAYMENT_METHOD, s.PAYMENT_STATUS FROM SALES s LEFT JOIN PATIENT p ON s.PATIENT_ID = p.PATIENT_ID LEFT JOIN USER u ON s.STAFF_ID = u.USER_ID WHERE s.SALE_DATE BETWEEN '$safe_start' AND '$safe_end' ORDER BY s.SALE_DATE DESC LIMIT 100");
+            $report_rows = mysqli_query($conn, "SELECT s.SALE_ID, p.NAME AS patient_name, u.NAME AS staff_name, s.SALE_DATE, s.TOTAL_AMOUNT, s.PAID_AMOUNT, s.PAYMENT_METHOD, s.PAYMENT_STATUS FROM SALES s LEFT JOIN PATIENT p ON s.PATIENT_ID = p.PATIENT_ID LEFT JOIN USER u ON s.STAFF_ID = u.USER_ID WHERE {$sales_date_sql} ORDER BY s.SALE_DATE DESC LIMIT 100");
             $heading = 'Sales Transactions';
             $columns = ['Invoice', 'Patient', 'Staff', 'Date', 'Total (RM)', 'Paid (RM)', 'Method', 'Status'];
             if($report_rows) {
@@ -169,7 +185,7 @@ if ($export === 'pdf' || $export === 'excel') {
                 }
             }
         } elseif($type === 'inventory') {
-            $report_rows = mysqli_query($conn, "SELECT p.PRODUCT_ID, p.BRAND_NAME, p.CATEGORY, p.STOCK_QUANTITY, p.UNIT_PRICE, p.EXPIRY_DATE FROM PRODUCT p ORDER BY p.BRAND_NAME ASC LIMIT 100");
+            $report_rows = mysqli_query($conn, "SELECT p.PRODUCT_ID, p.BRAND_NAME, p.CATEGORY, p.STOCK_QUANTITY, p.UNIT_PRICE, p.EXPIRY_DATE FROM PRODUCT p WHERE 1=1 {$inventory_category_sql} ORDER BY p.BRAND_NAME ASC LIMIT 100");
             $heading = 'Inventory Snapshot';
             $columns = ['Product', 'Category', 'Stock', 'Unit Price', 'Expiry'];
             if($report_rows) {
@@ -187,7 +203,7 @@ if ($export === 'pdf' || $export === 'excel') {
                 }
             }
         } else {
-            $report_rows = mysqli_query($conn, "SELECT EXAM_ID, PATIENT_ID, OPTOMETRIST_ID, EXAM_DATE FROM EYE_EXAMINATION ORDER BY EXAM_DATE DESC LIMIT 100");
+            $report_rows = mysqli_query($conn, "SELECT EXAM_ID, PATIENT_ID, OPTOMETRIST_ID, EXAM_DATE FROM EYE_EXAMINATION WHERE {$exam_date_sql} ORDER BY EXAM_DATE DESC LIMIT 100");
             $heading = 'Appointment & Exam History';
             $columns = ['Exam ID', 'Patient ID', 'Optometrist', 'Date'];
             if($report_rows) {
@@ -205,7 +221,7 @@ if ($export === 'pdf' || $export === 'excel') {
                     <p class="text-xs font-black uppercase tracking-[0.2em] text-[#0097B2]">Custom Output</p>
                     <h2 class="text-2xl font-bold text-slate-900 mt-2"><?php echo htmlspecialchars($heading); ?></h2>
                 </div>
-                <span class="text-sm text-slate-500">Showing up to 100 rows</span>
+                <span class="text-sm text-slate-500"><?php echo number_format(count($report_data)); ?> matching rows</span>
             </div>
 
             <?php if(count($report_data) > 0): ?>

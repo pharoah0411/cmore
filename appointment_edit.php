@@ -8,6 +8,8 @@ if(empty($id)) {
     exit();
 }
 
+$error = '';
+
 // ==========================================
 // HANDLE FORM SUBMISSION
 // ==========================================
@@ -40,18 +42,20 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_appointment'])) 
             $error = "This staff member already has an appointment at that date and time. Please choose another slot.";
         }
 
-        $sql = "UPDATE APPOINTMENT SET 
-                PATIENT_ID = '$patient_id', 
-                STAFF_ID = '$staff_id',
-                APPOINTMENT_DATETIME = '$datetime', 
-                STATUS = '$status' 
-                WHERE APPOINTMENT_ID = '$id'";
-        
-        if(!$error && mysqli_query($conn, $sql)) {
-            systemLog($conn, "Updated appointment details", 'appointment', $id);
-            header("Location: appointment.php?msg=updated");
-            exit();
-        } else {
+        if (empty($error)) {
+                $sql = "UPDATE APPOINTMENT SET
+                    PATIENT_ID = '$patient_id',
+                    STAFF_ID = '$staff_id',
+                    APPOINTMENT_DATETIME = '$datetime',
+                    STATUS = '$status'
+                    WHERE APPOINTMENT_ID = '$id'";
+
+            if (mysqli_query($conn, $sql)) {
+                systemLog($conn, "Updated appointment details", 'appointment', $id);
+                header("Location: appointment.php?msg=updated");
+                exit();
+            }
+
             $error = "Error updating appointment: " . mysqli_error($conn);
         }
     }

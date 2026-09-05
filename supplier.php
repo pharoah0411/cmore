@@ -7,12 +7,30 @@ if (empty($_SESSION['csrf_token'])) $_SESSION['csrf_token'] = bin2hex(random_byt
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['csrf_token']) && hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
     
     $action = $_POST['action'] ?? '';
+    $company_raw = trim($_POST['company_name'] ?? '');
+    $phone_raw = trim($_POST['phone_number'] ?? '');
+    $email_raw = trim($_POST['email'] ?? '');
+    if (in_array($action, ['add', 'edit'], true) && $company_raw === '') {
+        $_SESSION['flash'] = ['type' => 'error', 'msg' => 'Company name is required.'];
+        header("Location: supplier.php");
+        exit;
+    }
+    if (in_array($action, ['add', 'edit'], true) && $phone_raw !== '' && !preg_match('/^[0-9+()\- .]{7,25}$/', $phone_raw)) {
+        $_SESSION['flash'] = ['type' => 'error', 'msg' => 'Enter a valid supplier phone number.'];
+        header("Location: supplier.php");
+        exit;
+    }
+    if (in_array($action, ['add', 'edit'], true) && $email_raw !== '' && !filter_var($email_raw, FILTER_VALIDATE_EMAIL)) {
+        $_SESSION['flash'] = ['type' => 'error', 'msg' => 'Enter a valid supplier email address.'];
+        header("Location: supplier.php");
+        exit;
+    }
     
     if ($action === 'add') {
-        $company = mysqli_real_escape_string($conn, $_POST['company_name']);
+        $company = mysqli_real_escape_string($conn, $company_raw);
         $person = mysqli_real_escape_string($conn, $_POST['contact_person']);
-        $phone = mysqli_real_escape_string($conn, $_POST['phone_number']);
-        $email = mysqli_real_escape_string($conn, $_POST['email']);
+        $phone = mysqli_real_escape_string($conn, $phone_raw);
+        $email = mysqli_real_escape_string($conn, $email_raw);
         
         $sql = "INSERT INTO supplier (COMPANY_NAME, CONTACT_PERSON, PHONE_NUMBER, EMAIL) VALUES ('$company', '$person', '$phone', '$email')";
         if(mysqli_query($conn, $sql)) {
@@ -26,10 +44,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['csrf_token']) && hash
     
     if ($action === 'edit') {
         $id = (int)$_POST['supplier_id'];
-        $company = mysqli_real_escape_string($conn, $_POST['company_name']);
+        $company = mysqli_real_escape_string($conn, $company_raw);
         $person = mysqli_real_escape_string($conn, $_POST['contact_person']);
-        $phone = mysqli_real_escape_string($conn, $_POST['phone_number']);
-        $email = mysqli_real_escape_string($conn, $_POST['email']);
+        $phone = mysqli_real_escape_string($conn, $phone_raw);
+        $email = mysqli_real_escape_string($conn, $email_raw);
         
         $sql = "UPDATE supplier SET COMPANY_NAME='$company', CONTACT_PERSON='$person', PHONE_NUMBER='$phone', EMAIL='$email' WHERE SUPPLIER_ID=$id";
         if(mysqli_query($conn, $sql)) {
